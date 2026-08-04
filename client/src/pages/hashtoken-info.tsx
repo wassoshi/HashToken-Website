@@ -432,13 +432,11 @@ export default function HashTokenInfo() {
         </Card>
       </div>
 
-      {syncStatus && (
-        <Alert variant={syncStatus.status === "error" ? "destructive" : "default"}>
+      {syncStatus && syncStatus.status !== "error" && (
+        <Alert>
           <Activity className="h-4 w-4" />
           <AlertDescription>
-            {syncStatus.status === "error" ? (
-              <>Mining history sync needs attention: {syncStatus.lastError || "The latest indexing attempt failed."}</>
-            ) : syncStatus.status === "syncing" ? (
+            {syncStatus.status === "syncing" ? (
               <>Mining history is being synchronized from Ethereum.</>
             ) : (
               <>
