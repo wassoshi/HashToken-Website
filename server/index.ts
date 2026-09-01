@@ -88,6 +88,6 @@ app.use((req, res, next) => {
       .then(() => importJsonHistory())
       .catch((error) => console.error("Could not import preserved JSON mining history:", error))
       .finally(() => void runIndexer());
-    setInterval(() => void runIndexer(), 5 * 60 * 1000);
+    setInterval(() => void runIndexer(), 60 * 60 * 1000);
   });
 })();

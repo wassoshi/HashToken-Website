@@ -49,34 +49,34 @@ export default function HashTokenInfo() {
 
   const { data: contractState, isLoading: stateLoading, refetch: refetchState } = useQuery<ContractState>({
     queryKey: ['/api/contract/state'],
-    refetchInterval: 1 * 60 * 1000, // Refetch every 1 minute (more frequent for supply updates)
-    staleTime: 0, // Always consider data stale to force fresh fetches
-    refetchOnWindowFocus: true, // Refresh when user focuses the page
-    refetchOnMount: true, // Always fetch fresh data on component mount
+    refetchInterval: 60 * 60 * 1000, // Refresh hourly
+    staleTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
     gcTime: 0, // Don't cache old data
   });
 
   const { data: mintEvents, isLoading: eventsLoading, refetch: refetchMintEvents } = useQuery<MintEvent[]>({
     queryKey: ['/api/contract/mint-events'],
     queryFn: () => fetch('/api/contract/mint-events?limit=50').then(res => res.json()),
-    refetchInterval: 1 * 60 * 1000, // Refetch every 1 minute
-    staleTime: 30 * 1000, // Consider data stale after 30 seconds
-    refetchOnWindowFocus: true, // Refresh when user focuses the page
-    refetchOnMount: true, // Always fetch fresh data on component mount
+    refetchInterval: 60 * 60 * 1000, // Refresh hourly
+    staleTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
   });
 
   const { data: historyEvents, refetch: refetchHistory } = useQuery<MintEvent[]>({
     queryKey: ['/api/contract/history'],
     queryFn: () => fetch('/api/contract/history?days=30').then(res => res.json()),
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes (less frequent)
-    staleTime: 2 * 60 * 1000, // Consider data stale after 2 minutes
+    refetchInterval: 60 * 60 * 1000, // Refresh hourly
+    staleTime: 60 * 60 * 1000,
   });
 
   const { data: miners, refetch: refetchMiners } = useQuery<Array<{address: string, count: number}>>({
     queryKey: ['/api/contract/miners'],
     queryFn: () => fetch('/api/contract/miners').then(res => res.json()),
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
-    staleTime: 2 * 60 * 1000, // Consider data stale after 2 minutes
+    refetchInterval: 60 * 60 * 1000, // Refresh hourly
+    staleTime: 60 * 60 * 1000,
   });
 
   const { data: priceData, refetch: refetchPrice } = useQuery<{
@@ -93,8 +93,8 @@ export default function HashTokenInfo() {
   }>({
     queryKey: ['/api/contract/price'],
     queryFn: () => fetch('/api/contract/price').then(res => res.json()),
-    refetchInterval: 3 * 60 * 1000, // Refetch every 3 minutes
-    staleTime: 90 * 1000, // Consider data stale after 90 seconds
+    refetchInterval: 60 * 60 * 1000, // Refresh hourly
+    staleTime: 60 * 60 * 1000,
   });
 
   const { data: forecastData, refetch: refetchForecast } = useQuery<{
@@ -111,17 +111,17 @@ export default function HashTokenInfo() {
   }>({
     queryKey: ['/api/contract/forecast'],
     queryFn: () => fetch('/api/contract/forecast').then(res => res.json()),
-    refetchInterval: 1 * 60 * 1000, // Refetch every 1 minute
-    staleTime: 30 * 1000, // Consider data stale after 30 seconds
-    refetchOnWindowFocus: true, // Refresh when user focuses the page
-    refetchOnMount: true, // Always fetch fresh data on component mount
+    refetchInterval: 60 * 60 * 1000, // Refresh hourly
+    staleTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
   });
 
   const { data: syncStatus, refetch: refetchSyncStatus } = useQuery<SyncStatus>({
     queryKey: ['/api/contract/sync-status'],
     queryFn: () => fetch('/api/contract/sync-status').then(res => res.json()),
-    refetchInterval: 60 * 1000,
-    staleTime: 30 * 1000,
+    refetchInterval: 60 * 60 * 1000,
+    staleTime: 60 * 60 * 1000,
   });
 
   const handleRefresh = async () => {
