@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { syncMintHistory } from "./mint-indexer";
 import { importJsonHistory } from "./import-json-history";
-import { ensureSchema } from "./db";
+import { ensureSchema, pool } from "./db";
 
 const app = express();
 app.use(express.json());
@@ -46,8 +46,8 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    console.error(err);
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after
@@ -59,10 +59,15 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // The container uses port 5000; PORT keeps the app portable to other hosts.
+  const port = Number.parseInt(process.env.PORT ?? "5000", 10);
+
+  // Finish database setup before accepting traffic. The JSON import is
+  // duplicate-safe and seeds a fresh self-hosted database with the preserved
+  // mint history from the repository.
+  await ensureSchema();
+  await importJsonHistory();
+
   server.listen({
     port,
     host: "0.0.0.0",
@@ -81,13 +86,17 @@ app.use((req, res, next) => {
       }
     };
 
-    // Provision tables if missing, preserve the old local snapshot once,
-    // then continue from the durable checkpoint.
-    void ensureSchema()
-      .catch((error) => console.error("Could not provision database schema:", error))
-      .then(() => importJsonHistory())
-      .catch((error) => console.error("Could not import preserved JSON mining history:", error))
-      .finally(() => void runIndexer());
+    void runIndexer();
     setInterval(() => void runIndexer(), 60 * 60 * 1000);
   });
+
+  const shutdown = (signal: string) => {
+    log(`${signal} received; shutting down`);
+    server.close(() => {
+      void pool.end().finally(() => process.exit(0));
+    });
+  };
+
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 })();

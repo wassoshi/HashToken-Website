@@ -26,7 +26,7 @@ analytics, market data, and an educational hash calculator.
   TanStack Query, and Wouter
 - **Backend:** Node.js, Express, and TypeScript
 - **Blockchain:** ethers.js v6 with multiple public Ethereum RPC providers
-- **Database:** PostgreSQL through Neon and Drizzle ORM
+- **Database:** PostgreSQL through Drizzle ORM
 - **Build:** Vite for the client and esbuild for the server
 
 ## Project structure
@@ -37,7 +37,6 @@ server/                 Express routes, Ethereum integration, and indexing
 shared/                 Shared database schema and TypeScript types
 attached_assets/        Images and historical reference material
 storage-data.json       Preserved legacy history imported on startup
-drizzle.config.ts       Drizzle database configuration
 ```
 
 Important server files:
@@ -55,7 +54,7 @@ Important server files:
 
 ### Requirements
 
-- Node.js 20 or newer
+- Node.js 22 or newer
 - npm
 - A PostgreSQL connection string in either `DATABASE_URL` or
   `NEON_DATABASE_URL`
@@ -69,12 +68,7 @@ npm run dev
 
 The development server runs on port `5000`.
 
-The server creates the required tables if they do not already exist. For
-normal schema work, the Drizzle command is also available:
-
-```bash
-npm run db:push
-```
+The server creates the required tables if they do not already exist.
 
 ## Validate and build
 
@@ -136,12 +130,33 @@ The application is suitable for a Node.js host with:
 - A long-running process
 - Outbound HTTPS access to Ethereum RPC providers and DexScreener
 
-Use the existing Replit workflow (`npm run dev`) for development. For a
-production build, run `npm run build` followed by `npm start`.
+For a production build, run `npm run build` followed by `npm start`.
 
 Do not rely on the local filesystem for new mint history. The database is what
 preserves records across restarts and redeployments; the JSON file is only a
 migration snapshot.
+
+### Self-host on a VPS
+
+The included Docker Compose stack runs the application, PostgreSQL, and Caddy.
+Caddy obtains and renews the HTTPS certificate automatically.
+The bootstrap script also provisions 2 GB of swap and bounded Docker logs, so
+the stack can run on a small 1 GB RAM / 20 GB disk VPS.
+
+1. Install Docker Engine and the Docker Compose plugin on an Ubuntu VPS.
+2. Clone this repository and copy `.env.example` to `.env`.
+3. Set `DOMAIN` to the real domain and generate `POSTGRES_PASSWORD` with
+   `openssl rand -hex 32`.
+4. Point the domain's `A` record to the VPS IPv4 address.
+5. Run `docker compose up -d --build`.
+6. Check `docker compose ps` and `docker compose logs --tail=100 app caddy`.
+
+On a fresh Ubuntu VPS, steps 1, 2, 3, and 5 can be performed from the cloned
+repository with `sudo scripts/bootstrap-ubuntu.sh your-domain.com`.
+
+Only ports 80 and 443 are published. PostgreSQL and the Node.js service remain
+inside the private Docker network. Run `scripts/backup-database.sh` from the
+repository directory to create a PostgreSQL backup before upgrades.
 
 ## License
 

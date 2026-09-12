@@ -1,0 +1,9 @@
+.git
+.github
+.env
+backups
+dist
+node_modules
+npm-debug.log*
+attached_assets/*.csv
+attached_assets/*.txt

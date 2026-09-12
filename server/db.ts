@@ -1,12 +1,10 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
 
-neonConfig.webSocketConstructor = ws;
-
-// Development environments provide DATABASE_URL; the deployment provides
-// NEON_DATABASE_URL. Accept either so the app runs unchanged in both.
+// DATABASE_URL is used by the self-hosted PostgreSQL deployment. Keep the
+// legacy NEON_DATABASE_URL fallback so an existing Replit/Neon database can
+// still be used during migration.
 const connectionString = process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL;
 
 if (!connectionString) {
@@ -16,11 +14,11 @@ if (!connectionString) {
 }
 
 export const pool = new Pool({ connectionString });
-export const db = drizzle({ client: pool, schema });
+export const db = drizzle(pool, { schema });
 
 /**
- * Idempotent schema provisioning so a fresh database (or a deployment that has
- * never run `npm run db:push`) works on first boot. Mirrors shared/schema.ts.
+ * Idempotent schema provisioning so a fresh database works on first boot.
+ * Mirrors shared/schema.ts.
  */
 export async function ensureSchema(): Promise<void> {
   await pool.query(`
