@@ -16,6 +16,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.warn("Failed to initialize Ethereum provider:", error);
   });
 
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
   app.get("/api/contract/state", async (_req, res) => {
     try {
       const state = await getCurrentContractState();
