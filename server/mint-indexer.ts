@@ -56,8 +56,13 @@ async function runSync(
   const earliestStoredBlock = options.recentFirst
     ? undefined
     : await storage.getEarliestMintBlock();
+  // Once recent sync has a checkpoint, resume with a small reorg overlap.
+  // Replaying the entire 15,000-block window each hour exhausts public RPC
+  // providers and can leave new mints stuck behind repeated provider errors.
   const startBlock = options.recentFirst
-    ? Math.max(CONTRACT_DEPLOYMENT_BLOCK, latestBlock - RECENT_WINDOW_BLOCKS)
+    ? checkpoint
+      ? Math.max(CONTRACT_DEPLOYMENT_BLOCK, checkpoint - REORG_OVERLAP_BLOCKS)
+      : Math.max(CONTRACT_DEPLOYMENT_BLOCK, latestBlock - RECENT_WINDOW_BLOCKS + 1)
     : checkpoint
       ? Math.max(CONTRACT_DEPLOYMENT_BLOCK, checkpoint - REORG_OVERLAP_BLOCKS)
       : Math.max(
