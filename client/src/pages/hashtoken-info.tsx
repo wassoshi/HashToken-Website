@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, Line, Legend } from 'recharts';
 import { ExternalLink, RefreshCw, Hash, TrendingUp, Activity, Database, DollarSign, Archive, Github, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import hashTokenLogo from "@assets/image_1757206689096.png";
@@ -139,13 +138,34 @@ export default function HashTokenInfo() {
     staleTime: 60 * 60 * 1000,
   });
 
-  const timelineWithCumulativeSupply = useMemo(() => {
-    let cumulative = 0;
-    return (timeline ?? []).map((point) => {
-      cumulative += point.count;
-      return { ...point, cumulative };
-    });
+  const timelineSummary = useMemo(() => {
+    const points = timeline ?? [];
+    const total = points.reduce((sum, point) => sum + point.count, 0);
+    const peak = points.reduce<TimelinePoint | null>(
+      (currentPeak, point) => !currentPeak || point.count > currentPeak.count ? point : currentPeak,
+      null,
+    );
+
+    return {
+      points,
+      total,
+      peak,
+      maxCount: peak?.count ?? 0,
+    };
   }, [timeline]);
+
+  const formatTimelineMonth = (month: string) => {
+    const [year, monthNumber] = month.split('-').map(Number);
+    return new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' }).format(
+      new Date(Date.UTC(year, monthNumber - 1, 1)),
+    );
+  };
+
+  const getTimelineBarWidth = (count: number) => {
+    if (timelineSummary.maxCount <= 0) return '0%';
+    const scaledWidth = Math.log10(count + 1) / Math.log10(timelineSummary.maxCount + 1);
+    return `${Math.max(scaledWidth * 100, 4)}%`;
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -309,7 +329,7 @@ export default function HashTokenInfo() {
             <div>
               <h1 className="text-4xl font-bold tracking-tight md:text-5xl">HashToken (HTK)</h1>
               <p className="mt-3 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-                An early Ethereum experiment in self-limiting proof-of-work issuance, where every successful mint makes the next token harder to produce.
+                Launched in 2016, HashToken is a historic Ethereum proof-of-work token whose mining difficulty increases with every successful mint.
               </p>
             </div>
             <div className="flex flex-col justify-center gap-3 sm:flex-row md:justify-start">
@@ -922,43 +942,54 @@ export default function HashTokenInfo() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Indexed Mint Activity</CardTitle>
-              <CardDescription>Monthly mint events recovered from Ethereum, with the cumulative indexed total</CardDescription>
+              <CardTitle>Mint Activity by Month</CardTitle>
+              <CardDescription>Recovered on-chain mint events, shown with exact monthly counts</CardDescription>
             </CardHeader>
             <CardContent>
-              {timelineWithCumulativeSupply.length > 0 ? (
-                <div className="h-[340px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={timelineWithCumulativeSupply} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis
-                        dataKey="month"
-                        minTickGap={28}
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                      />
-                      <YAxis
-                        yAxisId="monthly"
-                        allowDecimals={false}
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                      />
-                      <YAxis
-                        yAxisId="cumulative"
-                        orientation="right"
-                        allowDecimals={false}
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: 'hsl(var(--popover))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Legend />
-                      <Bar yAxisId="monthly" dataKey="count" name="Mints in month" fill="#ef4444" radius={[3, 3, 0, 0]} />
-                      <Line yAxisId="cumulative" type="monotone" dataKey="cumulative" name="Indexed total" stroke="#60a5fa" dot={false} strokeWidth={2} />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+              {timelineSummary.points.length > 0 ? (
+                <div className="space-y-6">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Indexed events</div>
+                      <div className="mt-1 text-2xl font-semibold">{timelineSummary.total.toLocaleString()}</div>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Peak month</div>
+                      <div className="mt-1 text-lg font-semibold">
+                        {timelineSummary.peak ? formatTimelineMonth(timelineSummary.peak.month) : 'N/A'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {timelineSummary.peak?.count.toLocaleString() ?? 0} mints
+                      </div>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Active months</div>
+                      <div className="mt-1 text-2xl font-semibold">{timelineSummary.points.length}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {timelineSummary.points.map((point) => (
+                      <div key={point.month} className="grid grid-cols-[5.5rem_minmax(0,1fr)_3.5rem] items-center gap-3">
+                        <span className="text-xs font-medium text-muted-foreground">{formatTimelineMonth(point.month)}</span>
+                        <div
+                          className="h-3 overflow-hidden rounded-full bg-muted"
+                          role="img"
+                          aria-label={`${formatTimelineMonth(point.month)}: ${point.count.toLocaleString()} mints`}
+                        >
+                          <div
+                            className="h-full rounded-full bg-red-500"
+                            style={{ width: getTimelineBarWidth(point.count) }}
+                          />
+                        </div>
+                        <span className="text-right text-sm font-semibold tabular-nums">{point.count.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-center text-xs text-muted-foreground">
+                    Bar lengths use a logarithmic scale so quieter months remain visible; the numbers are exact.
+                  </p>
                 </div>
               ) : (
                 <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Loading activity timeline…</div>
