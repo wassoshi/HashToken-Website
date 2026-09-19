@@ -1,14 +1,13 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { ExternalLink, RefreshCw, Clock, Hash, TrendingUp, Activity, Database, Zap, DollarSign } from "lucide-react";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, Line, Legend } from 'recharts';
+import { ExternalLink, RefreshCw, Hash, TrendingUp, Activity, Database, DollarSign, Archive, Github, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import hashTokenLogo from "@assets/image_1757206689096.png";
 
@@ -20,6 +19,7 @@ interface ContractState {
   expectedAttempts: string;
   difficulty: string;
   totalMints?: number;
+  transactionCount?: number;
   isOffline?: boolean;
 }
 
@@ -38,10 +38,22 @@ interface SyncStatus {
   eventCount: number;
   checkpointBlock: number | null;
   recentCheckpointBlock?: number | null;
+  historyCheckpointBlock?: number | null;
+  historyComplete?: boolean;
+  historyLastError?: string | null;
   lastSuccessfulSyncAt: string | null;
   lastAttemptAt: string | null;
   lastError: string | null;
 }
+
+interface TimelinePoint {
+  month: string;
+  count: number;
+}
+
+const CONTRACT_ADDRESS = "0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0";
+const CONTRACT_URL = `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
+const REPOSITORY_URL = "https://github.com/wassoshi/HashToken-Website";
 
 export default function HashTokenInfo() {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -63,13 +75,6 @@ export default function HashTokenInfo() {
     staleTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
-  });
-
-  const { data: historyEvents, refetch: refetchHistory } = useQuery<MintEvent[]>({
-    queryKey: ['/api/contract/history'],
-    queryFn: () => fetch('/api/contract/history?days=30').then(res => res.json()),
-    refetchInterval: 60 * 60 * 1000, // Refresh hourly
-    staleTime: 60 * 60 * 1000,
   });
 
   const { data: miners, refetch: refetchMiners } = useQuery<Array<{address: string, count: number}>>({
@@ -124,30 +129,47 @@ export default function HashTokenInfo() {
     staleTime: 60 * 60 * 1000,
   });
 
+  const { data: timeline, refetch: refetchTimeline } = useQuery<TimelinePoint[]>({
+    queryKey: ['/api/contract/timeline'],
+    queryFn: async () => {
+      const response = await fetch('/api/contract/timeline');
+      if (!response.ok) throw new Error('Timeline is unavailable');
+      return response.json();
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+
+  const timelineWithCumulativeSupply = useMemo(() => {
+    let cumulative = 0;
+    return (timeline ?? []).map((point) => {
+      cumulative += point.count;
+      return { ...point, cumulative };
+    });
+  }, [timeline]);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // First sync with blockchain to get new mint events
-      await fetch('/api/contract/sync', { method: 'POST' });
-      
-      // Then invalidate all caches and refetch all queries
+      // Refresh the displayed data. Blockchain indexing runs safely in the
+      // background on the server rather than being triggered by public users.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['/api/contract/state'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/contract/mint-events'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/contract/history'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/contract/miners'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/contract/price'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/contract/forecast'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/contract/timeline'] }),
       ]);
       
       // Also explicitly refetch to ensure immediate updates
       await Promise.all([
         refetchState(),
         refetchMintEvents(),
-        refetchHistory(),
+        refetchMiners(),
         refetchPrice(),
         refetchForecast(),
         refetchSyncStatus(),
+        refetchTimeline(),
       ]);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -235,11 +257,23 @@ export default function HashTokenInfo() {
     }
   };
 
+  const indexedCount = syncStatus?.eventCount ?? contractState?.transactionCount ?? 0;
+  const totalMintCount = contractState ? Number.parseInt(contractState.totalSupply, 10) : 0;
+  const missingHistoryCount = Math.max(totalMintCount - indexedCount, 0);
+  const historyCoverage = totalMintCount > 0 ? (indexedCount / totalMintCount) * 100 : 0;
+
   if (stateLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="container mx-auto space-y-8 px-4 py-10">
+        <div className="mx-auto max-w-3xl space-y-4 text-center">
+          <div className="mx-auto h-24 w-24 animate-pulse rounded-full bg-muted" />
+          <h1 className="text-4xl font-bold">HashToken (HTK)</h1>
+          <p className="text-muted-foreground">Loading current Ethereum contract data…</p>
+        </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="h-48 animate-pulse rounded-lg border bg-muted/30" />
+          ))}
         </div>
       </div>
     );
@@ -247,70 +281,63 @@ export default function HashTokenInfo() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      {/* Header Section */}
-      <div className="text-center space-y-6">
-        {/* Mobile Layout - Stack vertically */}
-        <div className="block md:hidden">
-          <div className="flex justify-end mb-4">
-            <Button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              size="sm"
-              variant="outline"
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </Button>
-          </div>
-          
-          <div className="flex items-center justify-center space-x-4">
-            <img 
-              src={hashTokenLogo} 
-              alt="HashToken Logo" 
-              className="h-20 w-20 rounded-full object-cover"
-            />
-            <div>
-              <h1 className="text-4xl font-bold">HashToken (HTK)</h1>
-              <p className="text-lg text-muted-foreground mt-1">First Self-Limiting PoW Token</p>
-            </div>
-          </div>
+      <section id="overview" className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-red-500/10 via-background to-background px-6 py-10 md:px-10 md:py-14">
+        <div className="absolute right-6 top-6">
+          <Button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground"
+            aria-label="Refresh displayed data"
+          >
+            <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh data</span>
+          </Button>
         </div>
 
-        {/* Desktop Layout - Side by side */}
-        <div className="hidden md:block">
-          <div className="relative">
-            <div className="flex items-center justify-center space-x-4">
-              <img 
-                src={hashTokenLogo} 
-                alt="HashToken Logo" 
-                className="h-20 w-20 rounded-full object-cover"
-              />
-              <div>
-                <h1 className="text-4xl font-bold">HashToken (HTK)</h1>
-                <p className="text-lg text-muted-foreground mt-1">First Self-Limiting PoW Token</p>
-              </div>
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 text-center md:flex-row md:text-left">
+          <img
+            src={hashTokenLogo}
+            alt="HashToken logo"
+            className="h-24 w-24 rounded-full object-cover ring-1 ring-red-500/50 md:h-28 md:w-28"
+          />
+          <div className="space-y-4">
+            <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-300">
+              Ethereum · deployed June 17, 2016
+            </Badge>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight md:text-5xl">HashToken (HTK)</h1>
+              <p className="mt-3 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+                An early Ethereum experiment in self-limiting proof-of-work issuance, where every successful mint makes the next token harder to produce.
+              </p>
             </div>
-            
-            {/* Refresh Button - Top Right */}
-            <div className="absolute top-0 right-0">
-              <Button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                size="sm"
-                variant="outline"
-                className="flex items-center space-x-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
+            <div className="flex flex-col justify-center gap-3 sm:flex-row md:justify-start">
+              <Button asChild>
+                <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer">
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Verify on Etherscan
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a href="#history">
+                  <Archive className="mr-2 h-4 w-4" />
+                  Explore mining history
+                </a>
+              </Button>
+              <Button variant="ghost" asChild>
+                <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
+                  <Github className="mr-2 h-4 w-4" />
+                  Website source
+                </a>
               </Button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Key Metrics - Moved Above Educational Content */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {/* Current Supply */}
         {contractState && (
           <Card>
@@ -368,7 +395,7 @@ export default function HashTokenInfo() {
                   <div className="text-4xl font-bold text-blue-600">
                     ${parseFloat(priceData.priceUsd).toFixed(2)}
                   </div>
-                  <div className="text-sm text-muted-foreground">USD per HTK</div>
+                  <div className="text-sm text-muted-foreground">USD per HTK · DexScreener</div>
                   {priceData.priceNative && (
                     <div className="text-xs text-muted-foreground">
                       {parseFloat(priceData.priceNative).toFixed(6)} ETH
@@ -403,7 +430,7 @@ export default function HashTokenInfo() {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-base">
               <DollarSign className="h-4 w-4" />
-              <span>Market Cap</span>
+              <span>Estimated Market Cap</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -413,7 +440,7 @@ export default function HashTokenInfo() {
                   <div className="text-4xl font-bold text-purple-600">
                     ${Math.round(parseFloat(priceData.priceUsd) * parseInt(contractState.totalSupply)).toLocaleString()}
                   </div>
-                  <div className="text-sm text-muted-foreground">Total Value</div>
+                  <div className="text-sm text-muted-foreground">On-chain supply × live price</div>
                   <div className="text-xs text-muted-foreground">
                     {formatTokenAmount(contractState.totalSupply)} × ${parseFloat(priceData.priceUsd).toFixed(2)}
                   </div>
@@ -432,63 +459,78 @@ export default function HashTokenInfo() {
         </Card>
       </div>
 
-      {syncStatus && syncStatus.status !== "error" && (
-        <Alert>
+      {syncStatus && (
+        <Alert className={missingHistoryCount > 0 ? "border-amber-500/40 bg-amber-500/5" : "border-emerald-500/40 bg-emerald-500/5"}>
           <Activity className="h-4 w-4" />
-          <AlertDescription>
-            {syncStatus.status === "syncing" ? (
-              <>Mining history is being synchronized from Ethereum.</>
-            ) : (
-              <>
-                Mining history is stored permanently. {syncStatus.eventCount.toLocaleString()} mint records indexed
-                {syncStatus.lastSuccessfulSyncAt && ` · last synchronized ${formatDistanceToNow(new Date(syncStatus.lastSuccessfulSyncAt), { addSuffix: true })}`}.
-              </>
+          <AlertDescription className="space-y-2">
+            <div>
+              <strong>{syncStatus.status === "syncing" ? "Ethereum indexing is running." : "Recent Ethereum data is current."}</strong>{' '}
+              {indexedCount.toLocaleString()} of {totalMintCount.toLocaleString()} mint events are indexed
+              {totalMintCount > 0 && ` (${historyCoverage.toFixed(1)}% coverage)`}.
+              {syncStatus.lastSuccessfulSyncAt && ` Last checked ${formatDistanceToNow(new Date(syncStatus.lastSuccessfulSyncAt), { addSuffix: true })}.`}
+            </div>
+            {missingHistoryCount > 0 && (
+              <div className="text-xs text-muted-foreground">
+                {missingHistoryCount.toLocaleString()} older events remain to be recovered from archival Ethereum data. Existing records and new mints are preserved.
+              </div>
             )}
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Educational Content - Moved Below Metrics */}
-      <div className="max-w-4xl mx-auto space-y-6">
+      <section className="mx-auto max-w-4xl space-y-6">
         <div className="text-center space-y-4">
-          <h2 className="text-2xl font-semibold">Historic Significance</h2>
+          <h2 className="text-2xl font-semibold">A 2016 Ethereum experiment</h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            HashToken was deployed on <strong>June 17, 2016</strong>, making it the first Ethereum token to implement 
-            a self-limiting proof-of-work model. This groundbreaking contract introduced the revolutionary concept of 
-            exponentially increasing mining difficulty, where each successful mint makes subsequent tokens progressively 
-            harder to mine, creating natural scarcity through computational work.
+            HashToken was deployed on <strong>June 17, 2016</strong>. Its verified contract encodes a self-limiting proof-of-work
+            minting rule: every successful mint reduces the target by 1%, progressively increasing the expected computational
+            work required for the next token. Current historical research identifies it as the earliest known Ethereum token
+            to use this particular issuance model.
           </p>
+          <div className="flex flex-wrap justify-center gap-3 text-sm">
+            <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+              Verified contract ↗
+            </a>
+            <span className="text-muted-foreground">·</span>
+            <a href={`${CONTRACT_URL}#code`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+              Source code ↗
+            </a>
+            <span className="text-muted-foreground">·</span>
+            <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+              Website methodology ↗
+            </a>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+        <div className="grid grid-cols-1 gap-6 text-left md:grid-cols-2">
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">How It Works</h3>
-            <div className="space-y-2 text-muted-foreground">
-              <p>• <strong>Self-Limiting PoW:</strong> First token to implement exponentially increasing mining difficulty</p>
-              <p>• <strong>Dynamic Scarcity:</strong> Each mint reduces max_value by 1%, creating natural token scarcity</p>
-              <p>• <strong>Keccak-256 Hash:</strong> Uses the same hashing algorithm as Ethereum</p>
-              <p>• <strong>Exponential Progression:</strong> Mining difficulty compounds by ~1% with each successful mint</p>
-            </div>
+            <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
+              <li><strong>Self-limiting PoW:</strong> issuance becomes progressively harder rather than ending at a fixed cap.</li>
+              <li><strong>Dynamic target:</strong> each mint multiplies <code>max_value</code> by 99/100.</li>
+              <li><strong>Keccak-256:</strong> candidate values are combined with the previous winning hash.</li>
+              <li><strong>One-token reward:</strong> each valid solution creates one HTK.</li>
+            </ul>
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold">Mining Process</h3>
-            <div className="space-y-2 text-muted-foreground">
-              <p>• <strong>Find Valid Hash:</strong> Calculate hash(value + prevHash) ≤ maxValue</p>
-              <p>• <strong>Submit Solution:</strong> Call mint() with your winning value</p>
-              <p>• <strong>Receive Reward:</strong> Get 1 HTK token for successful mining</p>
-              <p>• <strong>Increase Difficulty:</strong> Next miner faces 1% harder challenge</p>
-            </div>
+            <h3 className="text-lg font-semibold">Minting rule</h3>
+            <ol className="list-decimal space-y-2 pl-5 text-muted-foreground">
+              <li>Find a value where <code>keccak256(value, prev_hash) ≤ max_value</code>.</li>
+              <li>Submit the value to the contract&apos;s <code>mint()</code> function.</li>
+              <li>The successful miner receives one HTK.</li>
+              <li>The contract records the new hash and makes the next mint harder.</li>
+            </ol>
           </div>
         </div>
-      </div>
+      </section>
 
 
 
 
 
       {/* Trading & Contract Information */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <section id="contract" className="grid scroll-mt-24 grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Additional Price Info - Only show if we have price data */}
         {priceData && priceData.priceUsd && (
           <div className="lg:col-span-2">
@@ -525,8 +567,8 @@ export default function HashTokenInfo() {
                         Math.round(parseFloat(priceData.priceUsd) * parseInt(contractState.totalSupply)).toLocaleString() : 
                         'N/A'}
                     </div>
-                    <div className="text-sm text-muted-foreground">Market Cap</div>
-                    <div className="text-xs text-muted-foreground">Our calculation</div>
+                    <div className="text-sm text-muted-foreground">Estimated Market Cap</div>
+                    <div className="text-xs text-muted-foreground">On-chain supply × DexScreener price</div>
                   </div>
                 </div>
               </CardContent>
@@ -539,7 +581,7 @@ export default function HashTokenInfo() {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <ExternalLink className="h-5 w-5" />
-              <span>Trading & Contract</span>
+              <span>Contract & Market Links</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -547,7 +589,7 @@ export default function HashTokenInfo() {
             <div className="space-y-2">
               <div className="text-sm font-medium">Contract Address</div>
               <a 
-                href="https://etherscan.io/address/0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0"
+                href={CONTRACT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-blue-500 hover:underline flex items-center space-x-1"
@@ -621,14 +663,14 @@ export default function HashTokenInfo() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </section>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="mining" className="w-full">
+      <Tabs defaultValue="mining" className="w-full scroll-mt-24" id="history">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="mining">Mining History</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="calculator">Hash Calculator</TabsTrigger>
+          <TabsTrigger value="calculator">Mining Simulator</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calculator" className="space-y-6">
@@ -636,7 +678,7 @@ export default function HashTokenInfo() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Hash className="h-5 w-5" />
-                <span>Educational Hash Calculator</span>
+                <span>Educational Mining Simulator</span>
               </CardTitle>
               <CardDescription>Learn about HashToken mining with our interactive calculator</CardDescription>
             </CardHeader>
@@ -644,19 +686,19 @@ export default function HashTokenInfo() {
               <div className="text-center space-y-4">
                 <div className="space-y-2">
                   <p className="text-muted-foreground">
-                    Try our educational hash calculator to understand how HashToken mining works.
-                    This tool demonstrates the Keccak-256 hashing process and difficulty calculations.
+                    Explore the Keccak-256 search process with demonstration parameters. Live contract values are shown for
+                    comparison, but the simulator does not claim that a browser can mine at today&apos;s difficulty.
                   </p>
                   <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
                     <Hash className="h-4 w-4" />
-                    <span>Educational tool for learning purposes</span>
+                    <span>No wallet connection and no transaction submission</span>
                   </div>
                 </div>
                 <div className="flex justify-center">
                   <Button asChild size="lg">
                     <a href="/hash-calculator">
                       <Hash className="h-4 w-4 mr-2" />
-                      Open Hash Calculator
+                      Open Mining Simulator
                     </a>
                   </Button>
                 </div>
@@ -666,11 +708,11 @@ export default function HashTokenInfo() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <h4 className="font-medium">Calculator Features</h4>
+                  <h4 className="font-medium">Simulator Features</h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Real-time hash calculations</li>
+                    <li>• Live contract parameters</li>
                     <li>• Difficulty analysis</li>
-                    <li>• Performance metrics</li>
+                    <li>• Safe demonstration difficulty</li>
                     <li>• Educational explanations</li>
                   </ul>
                 </div>
@@ -870,13 +912,64 @@ export default function HashTokenInfo() {
                   <div className="p-3 bg-muted rounded-lg">
                     <h4 className="font-medium mb-2">Historical Context</h4>
                     <p className="text-sm text-muted-foreground">
-                      Created in 2016, HashToken pioneered the self-limiting PoW model on Ethereum, introducing exponential difficulty scaling that creates natural token scarcity.
+                      The verified 2016 contract provides an unusually early example of Ethereum-based issuance governed by progressively increasing computational work.
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Indexed Mint Activity</CardTitle>
+              <CardDescription>Monthly mint events recovered from Ethereum, with the cumulative indexed total</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {timelineWithCumulativeSupply.length > 0 ? (
+                <div className="h-[340px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={timelineWithCumulativeSupply} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis
+                        dataKey="month"
+                        minTickGap={28}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      />
+                      <YAxis
+                        yAxisId="monthly"
+                        allowDecimals={false}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      />
+                      <YAxis
+                        yAxisId="cumulative"
+                        orientation="right"
+                        allowDecimals={false}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Legend />
+                      <Bar yAxisId="monthly" dataKey="count" name="Mints in month" fill="#ef4444" radius={[3, 3, 0, 0]} />
+                      <Line yAxisId="cumulative" type="monotone" dataKey="cumulative" name="Indexed total" stroke="#60a5fa" dot={false} strokeWidth={2} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Loading activity timeline…</div>
+              )}
+              {missingHistoryCount > 0 && (
+                <p className="mt-3 text-center text-xs text-muted-foreground">
+                  This chart covers {historyCoverage.toFixed(1)}% of known mints; archival recovery is still in progress.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Mining Activity Analysis */}
           <Card>
@@ -891,7 +984,7 @@ export default function HashTokenInfo() {
                     <div className="text-2xl font-bold text-blue-600">
                       {miners?.length || 'N/A'}
                     </div>
-                    <div className="text-sm text-muted-foreground">Unique Miners</div>
+                    <div className="text-sm text-muted-foreground">Indexed Miners</div>
                   </div>
                   <div className="text-center p-3 bg-muted rounded-lg">
                     <div className="text-2xl font-bold text-green-600">
@@ -911,31 +1004,20 @@ export default function HashTokenInfo() {
                     <div className="text-2xl font-bold text-purple-600">
                       {contractState ? formatExpectedAttempts(contractState.expectedAttempts) : 'N/A'}
                     </div>
-                    <div className="text-sm text-muted-foreground">Current Difficulty</div>
-                  </div>
-                </div>
-
-                {/* Gas Usage Analysis */}
-                <div className="space-y-3 mt-6">
-                  <h4 className="font-medium">Gas Usage Analysis</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center p-2 bg-muted rounded">
-                      <span className="text-sm">Total Gas Consumed:</span>
-                      <span className="text-sm font-mono">~300M gas</span>
-                    </div>
+                    <div className="text-sm text-muted-foreground">Expected Work</div>
                   </div>
                 </div>
 
                 <Alert>
                   <Activity className="h-4 w-4" />
                   <AlertDescription>
-                    HashToken mining continues with {contractState?.totalMints?.toLocaleString() || 'N/A'} total tokens minted since 2016. 
-                    Each successful mint increases difficulty by 1%, making mining progressively more challenging over time.
+                    The contract reports {contractState?.totalMints?.toLocaleString() || 'N/A'} total mints since 2016.
+                    The indexed miner statistics below currently cover {indexedCount.toLocaleString()} recovered events.
                   </AlertDescription>
                 </Alert>
 
                 <div className="space-y-3">
-                  <h4 className="font-medium">All Miners by Activity</h4>
+                  <h4 className="font-medium">Indexed Miners by Activity</h4>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {miners && miners.length > 0 ? (
                       miners.map((miner, index) => (
@@ -968,6 +1050,14 @@ export default function HashTokenInfo() {
 
 
       </Tabs>
+
+      <footer className="border-t py-8 text-center text-xs leading-relaxed text-muted-foreground">
+        <p>
+          Contract state is read from Ethereum. Mint history is reconstructed from on-chain events and stored in the website database;
+          the coverage indicator above shows whether that index is complete. Market data is supplied by DexScreener.
+        </p>
+        <p className="mt-2">This website is an informational historical resource, not financial advice.</p>
+      </footer>
     </div>
   );
 }

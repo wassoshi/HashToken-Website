@@ -1,7 +1,7 @@
 import { writeFileSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { type User, type InsertUser, type MintEvent, type InsertMintEvent } from "@shared/schema";
-import { type IStorage } from "./storage";
+import { type IStorage, type MinerActivity, type MintTimelinePoint } from "./storage";
 
 interface StorageData {
   users: User[];
@@ -140,6 +140,26 @@ export class MemoryStorage implements IStorage {
 
   async getMintEventCount(): Promise<number> {
     return this.data.mintEvents.length;
+  }
+
+  async getMinerActivity(): Promise<MinerActivity[]> {
+    const counts = new Map<string, number>();
+    for (const event of this.data.mintEvents) {
+      const address = event.minter.toLowerCase();
+      counts.set(address, (counts.get(address) ?? 0) + 1);
+    }
+    return Array.from(counts, ([address, count]) => ({ address, count }))
+      .sort((left, right) => right.count - left.count);
+  }
+
+  async getMintTimeline(): Promise<MintTimelinePoint[]> {
+    const counts = new Map<string, number>();
+    for (const event of this.data.mintEvents) {
+      const month = new Date(event.timestamp).toISOString().slice(0, 7);
+      counts.set(month, (counts.get(month) ?? 0) + 1);
+    }
+    return Array.from(counts, ([month, count]) => ({ month, count }))
+      .sort((left, right) => left.month.localeCompare(right.month));
   }
 
   async getEarliestMintBlock(): Promise<number | undefined> {

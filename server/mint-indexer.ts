@@ -257,6 +257,13 @@ export async function getMintSyncStatus() {
     checkpointBlock: state?.lastProcessedBlock ?? null,
     recentCheckpointBlock: recentState?.lastProcessedBlock ?? null,
     historyCheckpointBlock: historyState?.lastProcessedBlock ?? null,
+    historyComplete: Boolean(
+      historyState?.lastProcessedBlock &&
+      historyState.lastProcessedBlock <= CONTRACT_DEPLOYMENT_BLOCK,
+    ),
+    historyLastSuccessfulSyncAt: historyState?.lastSuccessfulSyncAt ?? null,
+    historyLastAttemptAt: historyState?.lastAttemptAt ?? null,
+    historyLastError: historyState?.lastError ?? null,
     lastSuccessfulSyncAt: recentState?.lastSuccessfulSyncAt ?? state?.lastSuccessfulSyncAt ?? null,
     lastAttemptAt: recentState?.lastAttemptAt ?? state?.lastAttemptAt ?? null,
     lastError: recentState?.lastError ?? state?.lastError ?? null,

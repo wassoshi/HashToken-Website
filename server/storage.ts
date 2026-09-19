@@ -2,6 +2,16 @@ import { type User, type InsertUser, type MintEvent, type InsertMintEvent, type 
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 
+export type MinerActivity = {
+  address: string;
+  count: number;
+};
+
+export type MintTimelinePoint = {
+  month: string;
+  count: number;
+};
+
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -14,6 +24,8 @@ export interface IStorage {
   insertMintEvents(events: InsertMintEvent[]): Promise<number>;
   getMintEventByHash(hash: string): Promise<MintEvent | undefined>;
   getMintEventCount(): Promise<number>;
+  getMinerActivity(): Promise<MinerActivity[]>;
+  getMintTimeline(): Promise<MintTimelinePoint[]>;
   getEarliestMintBlock(): Promise<number | undefined>;
   getSyncState(chain?: string): Promise<SyncState | undefined>;
   saveSyncSuccess(lastProcessedBlock: number, chain?: string): Promise<SyncState>;
@@ -91,6 +103,32 @@ export class DatabaseStorage implements IStorage {
   async getMintEventCount(): Promise<number> {
     const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(mintEvents);
     return row?.count ?? 0;
+  }
+
+  async getMinerActivity(): Promise<MinerActivity[]> {
+    // Ethereum addresses are case-insensitive. Group on a normalized address so
+    // imported checksum and lowercase variants never appear as separate miners.
+    const normalizedAddress = sql<string>`lower(${mintEvents.minter})`;
+    const mintCount = sql<number>`count(*)::int`;
+
+    return db
+      .select({ address: normalizedAddress, count: mintCount })
+      .from(mintEvents)
+      .groupBy(normalizedAddress)
+      .orderBy(desc(mintCount));
+  }
+
+  async getMintTimeline(): Promise<MintTimelinePoint[]> {
+    const monthBucket = sql`date_trunc('month', ${mintEvents.timestamp})`;
+
+    return db
+      .select({
+        month: sql<string>`to_char(${monthBucket}, 'YYYY-MM')`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(mintEvents)
+      .groupBy(monthBucket)
+      .orderBy(monthBucket);
   }
 
   async getEarliestMintBlock(): Promise<number | undefined> {

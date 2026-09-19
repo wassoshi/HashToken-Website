@@ -9,7 +9,7 @@ import {
   calculateForecast,
   calculateSupplyFromMaxValue,
 } from "./ethereum";
-import { getMintSyncStatus, syncMintHistory } from "./mint-indexer";
+import { getMintSyncStatus } from "./mint-indexer";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   void initializeProvider().catch((error) => {
@@ -68,18 +68,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/contract/miners", async (_req, res) => {
     try {
-      const events = await storage.getRecentMintEvents(10000);
-      const counts = new Map<string, number>();
-      for (const event of events) {
-        counts.set(event.minter, (counts.get(event.minter) || 0) + 1);
-      }
-      res.json(
-        Array.from(counts, ([address, count]) => ({ address, count }))
-          .sort((left, right) => right.count - left.count),
-      );
+      res.json(await storage.getMinerActivity());
     } catch (error) {
       console.error("Error fetching miners:", error);
       res.status(500).json({ error: "Failed to fetch miners" });
+    }
+  });
+
+  app.get("/api/contract/timeline", async (_req, res) => {
+    try {
+      res.json(await storage.getMintTimeline());
+    } catch (error) {
+      console.error("Error fetching mint timeline:", error);
+      res.status(500).json({ error: "Failed to fetch mint timeline" });
     }
   });
 
@@ -89,27 +90,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error retrieving mint sync status:", error);
       res.status(500).json({ error: "Failed to retrieve mint sync status" });
-    }
-  });
-
-  app.post("/api/contract/sync", async (req, res) => {
-    try {
-      res.json(await syncMintHistory({
-        fullBackfill: Boolean(req.body?.fullBackfill),
-        recentFirst: true,
-      }));
-    } catch (error) {
-      console.error("Error syncing mint events:", error);
-      res.status(502).json({ error: "Failed to synchronize mints from Ethereum" });
-    }
-  });
-
-  app.post("/api/contract/auto-sync", async (_req, res) => {
-    try {
-      res.json(await syncMintHistory({ fullBackfill: true, recentFirst: true }));
-    } catch (error) {
-      console.error("Error in automatic mint sync:", error);
-      res.status(502).json({ error: "Failed to synchronize mints from Ethereum" });
     }
   });
 
