@@ -14,6 +14,7 @@ analytics, market data, and an educational hash calculator.
 - Recent-mint capture that runs before the slower historical backfill.
 - Duplicate-safe, checkpointed synchronization with Ethereum.
 - Miner statistics and historical activity.
+- Monthly mint-activity timeline with explicit historical coverage reporting.
 - Difficulty and expected-attempts forecasts.
 - Live price, liquidity, volume, and market-cap data from DexScreener.
 - Client-side Keccak-256 hash calculator for educational use.
@@ -116,11 +117,14 @@ without requiring expensive per-transaction lookups.
 | `/api/contract/mint-events` | GET | Recent stored mint events |
 | `/api/contract/history` | GET | Mint events within a date range |
 | `/api/contract/miners` | GET | Aggregated miner counts |
+| `/api/contract/timeline` | GET | Monthly indexed mint counts |
 | `/api/contract/forecast` | GET | Future difficulty and expected-attempts forecast |
 | `/api/contract/price` | GET | DexScreener market data |
 | `/api/contract/sync-status` | GET | Indexer checkpoints, counts, and errors |
-| `/api/contract/sync` | POST | Run a manual synchronization |
-| `/api/contract/auto-sync` | POST | Run the background-style synchronization |
+
+Synchronization is intentionally not exposed as a public HTTP action. It runs
+on application startup and hourly in the server process, preventing anonymous
+visitors from triggering expensive Ethereum RPC scans.
 
 ## Deployment notes
 

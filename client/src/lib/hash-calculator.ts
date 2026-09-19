@@ -1,5 +1,7 @@
 import { keccak256 } from 'js-sha3';
 
+export const MAX_BROWSER_ATTEMPTS = 10_000_000;
+
 export interface CalculationParams {
   maxValue: string;
   prevHash: string;
@@ -41,6 +43,9 @@ export class HashCalculator {
   private normalizeHexString(hex: string): string {
     // Remove 0x prefix if present
     hex = hex.startsWith('0x') ? hex.slice(2) : hex;
+    if (hex.length > 64) {
+      throw new Error('bytes32 values cannot be longer than 64 hexadecimal characters');
+    }
     // Pad to 64 characters (32 bytes)
     return '0x' + hex.padStart(64, '0');
   }
@@ -97,23 +102,8 @@ export class HashCalculator {
     try {
       // Convert hash to BigInt for comparison
       const hashValue = BigInt(calculatedHash);
-      // CRITICAL FIX: Contract logic is "if (uint(sha3(value, prev_hash)) > max_value) { throw; }"
-      // This means for SUCCESS, we need hash <= max_value
-      // But the contract SUCCEEDS when hash <= max_value, so our validation is correct
-      const isValid = hashValue <= maxValue;
-      
-      // Enhanced debug logging for early attempts
-      if (this.attempts <= 5 || (this.attempts % 50000 === 0)) {
-        console.log(`Validation attempt ${this.attempts}:`, {
-          calculatedHash,
-          hashValue: hashValue.toString().slice(0, 20) + '...',
-          maxValue: maxValue.toString().slice(0, 20) + '...',
-          isValid,
-          note: 'Contract succeeds when hash <= max_value'
-        });
-      }
-      
-      return isValid;
+      // The contract accepts a solution when sha3(value, prev_hash) <= max_value.
+      return hashValue <= maxValue;
     } catch (error) {
       console.error('Hash validation error:', error);
       return false;
@@ -125,7 +115,7 @@ export class HashCalculator {
 
     const elapsed = (Date.now() - this.startTime) / 1000;
     const rate = elapsed > 0 ? Math.floor(this.attempts / elapsed) : 0;
-    const progress = Math.min((this.attempts / 100000) * 100, 100);
+    const progress = Math.min((this.attempts / MAX_BROWSER_ATTEMPTS) * 100, 100);
 
     this.onProgressUpdate({
       attempts: this.attempts,
@@ -156,6 +146,9 @@ export class HashCalculator {
       } else {
         throw new Error(`Invalid max_value format: ${maxValueStr}. Use decimal number or hex (0x...)`);
       }
+      if (this.maxValue <= BigInt(0) || this.maxValue >= (BigInt(1) << BigInt(256))) {
+        throw new Error('max_value must be greater than zero and smaller than 2^256');
+      }
       
       // Normalize prev_hash
       const prevHashStr = params.prevHash.trim();
@@ -167,22 +160,6 @@ export class HashCalculator {
       this.maxSolutions = params.maxSolutions;
       this.searchMethod = params.searchMethod;
       
-      console.log('Calculation parameters:', {
-        maxValue: this.maxValue.toString(),
-        maxValueHex: '0x' + this.maxValue.toString(16),
-        prevHash: this.prevHash,
-        maxSolutions: this.maxSolutions,
-        searchMethod: this.searchMethod
-      });
-
-      // Calculate probability of finding a valid solution
-      // Use scientific notation approximation method like the other analysis
-      // 2^256 ≈ 1.1579 × 10^77, maxValue ≈ 1.7835 × 10^65
-      const expectedAttempts = 1.1579e77 / 1.7835e65;
-      const probability = 1.0 / expectedAttempts;
-      console.log('Expected probability of finding valid hash:', probability);
-      console.log('Expected attempts needed:', expectedAttempts.toExponential());
-      console.log('Expected attempts (billions):', (expectedAttempts / 1e9).toFixed(1), 'billion');
     } catch (error) {
       console.error('Parameter parsing error:', error);
       throw new Error(`Invalid parameters: ${error instanceof Error ? error.message : String(error)}`);
@@ -210,12 +187,6 @@ export class HashCalculator {
             // Calculate hash
             const calculatedHash = this.calculateHash(inputValue, this.prevHash);
 
-            // Debug logging for first few attempts
-            if (this.attempts <= 3) {
-              const isValid = this.isValidSolution(calculatedHash, this.maxValue);
-              console.log(`Attempt ${this.attempts}: input=${inputValue.slice(0, 10)}..., hash=${calculatedHash.slice(0, 10)}..., isValid=${isValid}`);
-            }
-
             // Check if valid
             if (this.isValidSolution(calculatedHash, this.maxValue)) {
               const solution: HashSolution = {
@@ -241,10 +212,9 @@ export class HashCalculator {
           }
 
           // Stop if we've tried too many attempts (increased limit)
-          if (this.attempts >= 10000000) {
+          if (this.attempts >= MAX_BROWSER_ATTEMPTS) {
             this.isRunning = false;
             this.updateProgress();
-            console.log('Stopped after 10M attempts. This may indicate the max_value is too restrictive.');
             resolve();
             return;
           }
@@ -272,7 +242,7 @@ export class HashCalculator {
   getCurrentProgress(): CalculationProgress {
     const elapsed = (Date.now() - this.startTime) / 1000;
     const rate = elapsed > 0 ? Math.floor(this.attempts / elapsed) : 0;
-    const progress = Math.min((this.attempts / 100000) * 100, 100);
+    const progress = Math.min((this.attempts / MAX_BROWSER_ATTEMPTS) * 100, 100);
 
     return {
       attempts: this.attempts,

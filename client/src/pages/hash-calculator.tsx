@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useHashCalculator } from "@/hooks/use-hash-calculator";
+import { MAX_BROWSER_ATTEMPTS } from "@/lib/hash-calculator";
 import { Calculator, Settings, CheckCircle, Info, Copy, Download, Trash2, StopCircle, AlertTriangle } from "lucide-react";
 
 interface HashSolution {
@@ -16,12 +18,31 @@ interface HashSolution {
   isValid: boolean;
 }
 
+interface ContractState {
+  maxValue: string;
+  prevHash: string;
+  expectedAttempts: string;
+}
+
+const DEMO_MAX_VALUE = "57896044618658097711785492504343953926634992332820282019728792003956564819967";
+const DEMO_PREV_HASH = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
 export default function HashCalculator() {
   const [maxValue, setMaxValue] = useState("");
   const [prevHash, setPrevHash] = useState("");
   const [maxSolutions, setMaxSolutions] = useState("5");
   const [searchMethod, setSearchMethod] = useState("random");
   const { toast } = useToast();
+
+  const { data: contractState, isLoading: contractStateLoading } = useQuery<ContractState>({
+    queryKey: ['/api/contract/state'],
+    queryFn: async () => {
+      const response = await fetch('/api/contract/state');
+      if (!response.ok) throw new Error('Contract state is unavailable');
+      return response.json();
+    },
+    staleTime: 60_000,
+  });
 
   const {
     isCalculating,
@@ -56,12 +77,32 @@ export default function HashCalculator() {
       return;
     }
 
-    // Validate prev_hash format (must be hex with 0x prefix)
-    if (!prevHash.match(/^0x[0-9a-fA-F]+$/)) {
+    // prev_hash is a bytes32 value: exactly 64 hexadecimal characters.
+    if (!prevHash.match(/^0x[0-9a-fA-F]{64}$/)) {
       toast({
         title: "Invalid Previous Hash", 
-        description: "Previous hash must be a hex string starting with 0x",
+        description: "Previous hash must be a 32-byte hex value starting with 0x",
         variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const max = BigInt(maxValue);
+      const expectedAttempts = Number(BigInt(1) << BigInt(256)) / Number(max);
+      if (expectedAttempts > MAX_BROWSER_ATTEMPTS * 10) {
+        toast({
+          title: "Live mining is not practical in a browser",
+          description: `This setting needs roughly ${expectedAttempts.toExponential(2)} attempts on average. Load the demonstration values to see the algorithm work safely.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch {
+      toast({
+        title: "Invalid Max Value",
+        description: "Max value could not be interpreted as an integer.",
+        variant: "destructive",
       });
       return;
     }
@@ -97,9 +138,15 @@ export default function HashCalculator() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-3">
             <Calculator className="text-red-500" size={40} />
-            HashToken Mint Calculator
+            HashToken Mining Simulator
           </h1>
-          <p className="text-slate-300 text-lg">Find valid hash values for minting HashToken (HTK)</p>
+          <p className="text-slate-300 text-lg">Explore the original minting algorithm without pretending a browser can mine at today&apos;s difficulty</p>
+        </div>
+
+        <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+          This is an educational simulator. The live contract currently requires about{' '}
+          <strong>{contractState ? Number.parseFloat(contractState.expectedAttempts).toExponential(2) : 'quadrillions of'} attempts</strong>{' '}
+          on average, far beyond a normal browser session. Use the demonstration preset to see a valid result.
         </div>
 
         {/* Input Section */}
@@ -173,14 +220,14 @@ export default function HashCalculator() {
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Button
                 onClick={handleStartCalculation}
                 disabled={isCalculating}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                className="min-w-[220px] flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
                 <Calculator className="mr-2" size={16} />
-                Calculate Hash Values
+                Run Simulation
               </Button>
 
               {isCalculating && (
@@ -196,26 +243,28 @@ export default function HashCalculator() {
 
               <Button
                 onClick={() => {
-                  setMaxValue("178352154310923568934782825455846174252727713524957781003412386523589");
-                  setPrevHash("0x2d3875610ea43ff64255da32b982a2359d6c4853314898c1ccebc91ee8a00ee4");
+                  if (!contractState) return;
+                  setMaxValue(contractState.maxValue);
+                  setPrevHash(contractState.prevHash);
                 }}
+                disabled={contractStateLoading || !contractState || isCalculating}
                 variant="outline"
                 className="border-slate-600 text-slate-300 hover:bg-slate-700"
               >
                 <Settings className="mr-2" size={16} />
-                Use Your Contract Values
+                Load Live Parameters
               </Button>
               
               <Button
                 onClick={() => {
-                  setMaxValue("57896044618658097711785492504343953926634992332820282019728792003956564819967");
-                  setPrevHash("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+                  setMaxValue(DEMO_MAX_VALUE);
+                  setPrevHash(DEMO_PREV_HASH);
                 }}
                 variant="outline"
                 className="border-slate-600 text-slate-300 hover:bg-slate-700"
               >
                 <Settings className="mr-2" size={16} />
-                Use Test Values (50% chance)
+                Load Demo (50% chance)
               </Button>
             </div>
           </CardContent>
@@ -237,6 +286,7 @@ export default function HashCalculator() {
               </div>
 
               <Progress value={progress} className="w-full" />
+              <p className="text-xs text-slate-400">The simulator stops automatically after {MAX_BROWSER_ATTEMPTS.toLocaleString()} attempts.</p>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-slate-900 p-3 rounded-lg text-center">
@@ -370,19 +420,11 @@ export default function HashCalculator() {
                   {(() => {
                     try {
                       const maxVal = BigInt(maxValue);
-                      const maxPossible = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
-                      
-                      // Use scientific notation approximation method like the other analysis
-                      // 2^256 ≈ 1.1579 × 10^77
-                      // maxValue ≈ 1.7835 × 10^65 (approximation for values around 178352154...)
-                      const maxValueStr = maxVal.toString();
-                      
-                      // For values starting with "178352154", approximate as 1.7835 × 10^65
-                      const expectedAttempts = 1.1579e77 / 1.7835e65;
+                      const expectedAttempts = Number(BigInt(1) << BigInt(256)) / Number(maxVal);
                       const probability = 1.0 / expectedAttempts;
                       
                       if (expectedAttempts > 1000000000) {
-                        return `Very high difficulty: Expected ~${(expectedAttempts / 1000000000).toFixed(1)}B attempts needed. Your contract's max_value is very restrictive (${(probability * 100).toFixed(8)}% success rate). Consider using "Test Values" first to verify the calculation works.`;
+                        return `Very high difficulty: roughly ${expectedAttempts.toExponential(2)} attempts expected (${(probability * 100).toExponential(2)}% success per attempt). This simulator will not run an impractical live search.`;
                       } else if (expectedAttempts > 1000000) {
                         return `High difficulty: Expected ~${(expectedAttempts / 1000000).toFixed(1)}M attempts needed. Your contract's max_value is restrictive (${(probability * 100).toFixed(6)}% success rate).`;
                       } else if (expectedAttempts > 10000) {
@@ -404,11 +446,11 @@ export default function HashCalculator() {
                 Important Notes
               </h4>
               <ul className="space-y-1 text-sm text-slate-300">
-                <li>• Ensure max_value and prev_hash are current values from the contract</li>
+                <li>• “Load Live Parameters” retrieves current values directly from Ethereum</li>
                 <li>• The calculation finds values where hash ≤ max_value (valid for minting)</li>
-                <li>• Use the calculated bytes32 value directly in the mint() function</li>
                 <li>• Values are calculated using keccak256 (same as contract's sha3)</li>
-                <li>• Click "Use Sample Values" to test with example data</li>
+                <li>• The demonstration preset is intentionally easy and is not valid for the live contract</li>
+                <li>• No transaction is created and no wallet is connected</li>
               </ul>
             </div>
           </CardContent>
@@ -418,7 +460,7 @@ export default function HashCalculator() {
         <div className="mt-8 text-center text-slate-400">
           <p className="text-sm flex items-center justify-center gap-2">
             <CheckCircle size={16} />
-            HashToken Mint Calculator - Calculate valid hash values for minting
+            Educational browser simulation — no wallet connection or transaction submission
           </p>
         </div>
       </div>
