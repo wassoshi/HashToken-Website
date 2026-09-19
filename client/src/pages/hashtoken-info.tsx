@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExternalLink, RefreshCw, Hash, TrendingUp, Activity, Database, DollarSign, Archive, Github, ShieldCheck } from "lucide-react";
+import { ExternalLink, Hash, TrendingUp, Activity, Database, DollarSign, Archive, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import hashTokenLogo from "@assets/image_1757206689096.png";
 
@@ -55,10 +55,9 @@ const CONTRACT_URL = `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
 const REPOSITORY_URL = "https://github.com/wassoshi/HashToken-Website";
 
 export default function HashTokenInfo() {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const queryClient = useQueryClient();
+  const [showAllMintEvents, setShowAllMintEvents] = useState(false);
 
-  const { data: contractState, isLoading: stateLoading, refetch: refetchState } = useQuery<ContractState>({
+  const { data: contractState, isLoading: stateLoading } = useQuery<ContractState>({
     queryKey: ['/api/contract/state'],
     refetchInterval: 60 * 60 * 1000, // Refresh hourly
     staleTime: 60 * 60 * 1000,
@@ -67,7 +66,7 @@ export default function HashTokenInfo() {
     gcTime: 0, // Don't cache old data
   });
 
-  const { data: mintEvents, isLoading: eventsLoading, refetch: refetchMintEvents } = useQuery<MintEvent[]>({
+  const { data: mintEvents, isLoading: eventsLoading } = useQuery<MintEvent[]>({
     queryKey: ['/api/contract/mint-events'],
     queryFn: () => fetch('/api/contract/mint-events?limit=50').then(res => res.json()),
     refetchInterval: 60 * 60 * 1000, // Refresh hourly
@@ -76,14 +75,14 @@ export default function HashTokenInfo() {
     refetchOnMount: true,
   });
 
-  const { data: miners, refetch: refetchMiners } = useQuery<Array<{address: string, count: number}>>({
+  const { data: miners } = useQuery<Array<{address: string, count: number}>>({
     queryKey: ['/api/contract/miners'],
     queryFn: () => fetch('/api/contract/miners').then(res => res.json()),
     refetchInterval: 60 * 60 * 1000, // Refresh hourly
     staleTime: 60 * 60 * 1000,
   });
 
-  const { data: priceData, refetch: refetchPrice } = useQuery<{
+  const { data: priceData } = useQuery<{
     priceUsd: string;
     priceNative: string;
     priceChange24h: number;
@@ -101,7 +100,7 @@ export default function HashTokenInfo() {
     staleTime: 60 * 60 * 1000,
   });
 
-  const { data: forecastData, refetch: refetchForecast } = useQuery<{
+  const { data: forecastData } = useQuery<{
     currentMintCount: number;
     currentMaxValue: string;
     currentExpectedAttempts: string;
@@ -121,14 +120,14 @@ export default function HashTokenInfo() {
     refetchOnMount: true,
   });
 
-  const { data: syncStatus, refetch: refetchSyncStatus } = useQuery<SyncStatus>({
+  const { data: syncStatus } = useQuery<SyncStatus>({
     queryKey: ['/api/contract/sync-status'],
     queryFn: () => fetch('/api/contract/sync-status').then(res => res.json()),
     refetchInterval: 60 * 60 * 1000,
     staleTime: 60 * 60 * 1000,
   });
 
-  const { data: timeline, refetch: refetchTimeline } = useQuery<TimelinePoint[]>({
+  const { data: timeline } = useQuery<TimelinePoint[]>({
     queryKey: ['/api/contract/timeline'],
     queryFn: async () => {
       const response = await fetch('/api/contract/timeline');
@@ -165,37 +164,6 @@ export default function HashTokenInfo() {
     if (timelineSummary.maxCount <= 0) return '0%';
     const scaledWidth = Math.log10(count + 1) / Math.log10(timelineSummary.maxCount + 1);
     return `${Math.max(scaledWidth * 100, 4)}%`;
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      // Refresh the displayed data. Blockchain indexing runs safely in the
-      // background on the server rather than being triggered by public users.
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/contract/state'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/contract/mint-events'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/contract/miners'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/contract/price'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/contract/forecast'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/contract/timeline'] }),
-      ]);
-      
-      // Also explicitly refetch to ensure immediate updates
-      await Promise.all([
-        refetchState(),
-        refetchMintEvents(),
-        refetchMiners(),
-        refetchPrice(),
-        refetchForecast(),
-        refetchSyncStatus(),
-        refetchTimeline(),
-      ]);
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
   };
 
   const formatLargeNumber = (num: string): string => {
@@ -281,6 +249,8 @@ export default function HashTokenInfo() {
   const totalMintCount = contractState ? Number.parseInt(contractState.totalSupply, 10) : 0;
   const missingHistoryCount = Math.max(totalMintCount - indexedCount, 0);
   const historyCoverage = totalMintCount > 0 ? (indexedCount / totalMintCount) * 100 : 0;
+  const visibleMintEvents = showAllMintEvents ? (mintEvents ?? []) : (mintEvents ?? []).slice(0, 12);
+  const topMiners = (miners ?? []).slice(0, 10);
 
   if (stateLoading) {
     return (
@@ -302,20 +272,6 @@ export default function HashTokenInfo() {
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <section id="overview" className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-red-500/10 via-background to-background px-6 py-10 md:px-10 md:py-14">
-        <div className="absolute right-6 top-6">
-          <Button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            size="sm"
-            variant="ghost"
-            className="text-muted-foreground"
-            aria-label="Refresh displayed data"
-          >
-            <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh data</span>
-          </Button>
-        </div>
-
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 text-center md:flex-row md:text-left">
           <img
             src={hashTokenLogo}
@@ -334,21 +290,14 @@ export default function HashTokenInfo() {
             </div>
             <div className="flex flex-col justify-center gap-3 sm:flex-row md:justify-start">
               <Button asChild>
-                <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer">
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  Verify on Etherscan
-                </a>
-              </Button>
-              <Button variant="outline" asChild>
                 <a href="#history">
                   <Archive className="mr-2 h-4 w-4" />
                   Explore mining history
                 </a>
               </Button>
-              <Button variant="ghost" asChild>
-                <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer">
-                  <Github className="mr-2 h-4 w-4" />
-                  Website source
+              <Button variant="outline" asChild>
+                <a href="#about">
+                  How it works
                 </a>
               </Button>
             </div>
@@ -498,7 +447,7 @@ export default function HashTokenInfo() {
         </Alert>
       )}
 
-      <section className="mx-auto max-w-4xl space-y-6">
+      <section id="about" className="mx-auto max-w-4xl scroll-mt-24 space-y-6">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-semibold">A 2016 Ethereum experiment</h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
@@ -507,17 +456,11 @@ export default function HashTokenInfo() {
             work required for the next token. Current historical research identifies it as the earliest known Ethereum token
             to use this particular issuance model.
           </p>
-          <div className="flex flex-wrap justify-center gap-3 text-sm">
-            <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-              Verified contract ↗
-            </a>
-            <span className="text-muted-foreground">·</span>
-            <a href={`${CONTRACT_URL}#code`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-              Source code ↗
-            </a>
-            <span className="text-muted-foreground">·</span>
-            <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-              Website methodology ↗
+          <div className="flex justify-center text-sm">
+            <a href={`${CONTRACT_URL}#code`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-400 hover:underline">
+              <ShieldCheck className="h-4 w-4" />
+              Read the verified 2016 contract source
+              <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         </div>
@@ -549,140 +492,30 @@ export default function HashTokenInfo() {
 
 
 
-      {/* Trading & Contract Information */}
-      <section id="contract" className="grid scroll-mt-24 grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Additional Price Info - Only show if we have price data */}
-        {priceData && priceData.priceUsd && (
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <TrendingUp className="h-5 w-5" />
-                  <span>Market Data</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center space-y-2">
-                    <div className="text-2xl font-bold">
-                      ${priceData.liquidity ? (priceData.liquidity / 1000).toFixed(1) + 'K' : 'N/A'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Liquidity</div>
-                    <div className="text-xs text-muted-foreground">Total pool liquidity</div>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <div className="text-2xl font-bold">
-                      ${priceData.volume24h ? (
-                        priceData.volume24h >= 1000 ? 
-                          (priceData.volume24h / 1000).toFixed(1) + 'K' : 
-                          priceData.volume24h.toFixed(0)
-                      ) : 'N/A'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Volume (24h)</div>
-                    <div className="text-xs text-muted-foreground">Trading volume</div>
-                  </div>
-                  <div className="text-center space-y-2">
-                    <div className="text-2xl font-bold">
-                      ${contractState ? 
-                        Math.round(parseFloat(priceData.priceUsd) * parseInt(contractState.totalSupply)).toLocaleString() : 
-                        'N/A'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Estimated Market Cap</div>
-                    <div className="text-xs text-muted-foreground">On-chain supply × DexScreener price</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      <section className="rounded-xl border bg-muted/10 px-5 py-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="font-semibold">Explore HashToken</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Verify the token on-chain or view its current market.</p>
           </div>
-        )}
-
-        {/* Trading & Contract Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <ExternalLink className="h-5 w-5" />
-              <span>Contract & Market Links</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Contract Address */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Contract Address</div>
-              <a 
-                href={CONTRACT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-500 hover:underline flex items-center space-x-1"
-              >
-                <span>0xE5544a...31b0</span>
-                <ExternalLink className="h-3 w-3" />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer">
+                Etherscan <ExternalLink className="ml-2 h-3.5 w-3.5" />
               </a>
-            </div>
-
-            <Separator />
-
-            {/* Trading Links */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Trading</div>
-              <div className="space-y-2">
-                <a 
-                  href="https://app.uniswap.org/explore/tokens/ethereum/0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-2 bg-muted rounded hover:bg-muted/80 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">U</span>
-                    </div>
-                    <span className="text-sm">Uniswap</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-                <a 
-                  href="https://www.dextools.io/app/en/ether/pair-explorer/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52?t=1752147961143"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-2 bg-muted rounded hover:bg-muted/80 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">D</span>
-                    </div>
-                    <span className="text-sm">DexTools</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-                <a 
-                  href="https://dexscreener.com/ethereum/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-2 bg-muted rounded hover:bg-muted/80 transition-colors"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">S</span>
-                    </div>
-                    <span className="text-sm">DexScreener</span>
-                  </div>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Token Info */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Token Details</div>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>Symbol: HTK</div>
-                <div>Decimals: 16</div>
-                <div>Created: June 17, 2016</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://dexscreener.com/ethereum/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52" target="_blank" rel="noopener noreferrer">
+                DexScreener <ExternalLink className="ml-2 h-3.5 w-3.5" />
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href="https://app.uniswap.org/explore/tokens/ethereum/0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0" target="_blank" rel="noopener noreferrer">
+                Uniswap <ExternalLink className="ml-2 h-3.5 w-3.5" />
+              </a>
+            </Button>
+          </div>
+        </div>
       </section>
 
       {/* Main Content Tabs */}
@@ -819,7 +652,7 @@ export default function HashTokenInfo() {
                     <span className="text-right">Miner / transaction</span>
                   </div>
                   <div className="divide-y rounded-lg border bg-muted/10">
-                  {mintEvents.map((event, eventIndex) => {
+                  {visibleMintEvents.map((event, eventIndex) => {
                     const estimatedAttempts = getEstimatedAttempts(event, eventIndex);
                     return (
                     <div key={event.id} className="px-4 py-3 transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted/30">
@@ -863,6 +696,13 @@ export default function HashTokenInfo() {
                     );
                   })}
                   </div>
+                  {mintEvents.length > 12 && (
+                    <div className="mt-4 flex justify-center">
+                      <Button variant="ghost" size="sm" onClick={() => setShowAllMintEvents((current) => !current)}>
+                        {showAllMintEvents ? 'Show fewer events' : `Show ${mintEvents.length - 12} more events`}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -1050,8 +890,8 @@ export default function HashTokenInfo() {
                 <div className="space-y-3">
                   <h4 className="font-medium">Indexed Miners by Activity</h4>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {miners && miners.length > 0 ? (
-                      miners.map((miner, index) => (
+                    {topMiners.length > 0 ? (
+                      topMiners.map((miner, index) => (
                         <div key={miner.address} className="flex justify-between items-center p-2 bg-muted rounded">
                           <div className="flex items-center space-x-2">
                             <span className="text-xs text-muted-foreground w-6">#{index + 1}</span>
@@ -1073,6 +913,11 @@ export default function HashTokenInfo() {
                       </div>
                     )}
                   </div>
+                  {miners && miners.length > topMiners.length && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      Showing the 10 most active of {miners.length.toLocaleString()} indexed miners.
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -1088,6 +933,11 @@ export default function HashTokenInfo() {
           the coverage indicator above shows whether that index is complete. Market data is supplied by DexScreener.
         </p>
         <p className="mt-2">This website is an informational historical resource, not financial advice.</p>
+        <p className="mt-3">
+          <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline">
+            Website source and methodology ↗
+          </a>
+        </p>
       </footer>
     </div>
   );
