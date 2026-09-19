@@ -309,7 +309,7 @@ export default function HashTokenInfo() {
             <div>
               <h1 className="text-4xl font-bold tracking-tight md:text-5xl">HashToken (HTK)</h1>
               <p className="mt-3 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-                An early Ethereum experiment in self-limiting proof-of-work issuance, where every successful mint makes the next token harder to produce.
+                Launched in 2016, HashToken is a historic Ethereum proof-of-work token whose mining difficulty increases with every successful mint.
               </p>
             </div>
             <div className="flex flex-col justify-center gap-3 sm:flex-row md:justify-start">
