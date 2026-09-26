@@ -264,7 +264,7 @@ export default function HashTokenInfo() {
                 HashToken <span className="text-red-500">HTK</span>
               </h1>
               <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-                An Ethereum token with contract-based proof-of-work issuance. After each successful mint, the target is reduced by 1%.
+                An early Ethereum token with proof-of-work issuance encoded in its contract.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -293,24 +293,24 @@ export default function HashTokenInfo() {
                   className="h-20 w-20 rounded-full object-cover ring-1 ring-red-500/50"
                 />
                 <div>
-                  <div className="text-xs font-medium uppercase tracking-[0.2em] text-red-300">Contract rule</div>
-                  <div className="mt-1 text-2xl font-semibold">Difficulty adjustment</div>
+                  <div className="text-xs font-medium uppercase tracking-[0.2em] text-red-300">Contract parameters</div>
+                  <div className="mt-1 text-2xl font-semibold">Proof-of-work issuance</div>
                 </div>
               </div>
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-5 text-center">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Reward</div>
-                  <div className="mt-1 text-2xl font-bold">1 HTK</div>
+              <dl className="divide-y divide-white/10 py-2 text-sm">
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt className="text-muted-foreground">Hash function</dt>
+                  <dd className="font-medium">Keccak-256</dd>
                 </div>
-                <ArrowRight className="h-5 w-5 text-red-400" />
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Next target</div>
-                  <div className="mt-1 text-2xl font-bold text-red-400">−1%</div>
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt className="text-muted-foreground">Mint reward</dt>
+                  <dd className="font-medium">1 HTK</dd>
                 </div>
-              </div>
-              <p className="rounded-xl bg-white/[0.04] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-                After a successful mint, the contract multiplies the target by 99/100. A lower target increases the expected attempts for the next mint.
-              </p>
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt className="text-muted-foreground">Target adjustment</dt>
+                  <dd className="font-mono font-medium text-red-400">max_value × 0.99</dd>
+                </div>
+              </dl>
             </div>
           </div>
         </div>
@@ -318,7 +318,7 @@ export default function HashTokenInfo() {
 
       {contractState && (
         <Card className="overflow-hidden border-border/80 bg-card/60 shadow-lg shadow-black/10">
-          <div className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4">
             <div className="p-6">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Database className="h-4 w-4 text-emerald-400" />
@@ -329,7 +329,7 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">HTK · one token per successful mint</div>
             </div>
-            <div className="p-6">
+            <div className="border-t p-6 sm:border-l sm:border-t-0">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Gauge className="h-4 w-4 text-red-400" />
                 Work expected for next mint
@@ -339,7 +339,7 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">hash attempts on average</div>
             </div>
-            <div className="p-6">
+            <div className="border-t p-6 lg:border-l lg:border-t-0">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Archive className="h-4 w-4 text-blue-400" />
                 Mining history indexed
@@ -349,6 +349,20 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">
                 {indexedCount.toLocaleString()} of {totalMintCount.toLocaleString()} mint events
+              </div>
+            </div>
+            <div className="border-t p-6 sm:border-l lg:border-t-0">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Activity className="h-4 w-4 text-emerald-400" />
+                Status
+              </div>
+              <div className="mt-3 text-3xl font-semibold tracking-tight">
+                {syncStatus?.status === "syncing" ? "Syncing" : syncStatus?.status === "error" ? "Delayed" : "Current"}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {syncStatus?.lastSuccessfulSyncAt
+                  ? `updated ${formatDistanceToNow(new Date(syncStatus.lastSuccessfulSyncAt), { addSuffix: true })}`
+                  : "Ethereum index status"}
               </div>
             </div>
           </div>
@@ -370,12 +384,12 @@ export default function HashTokenInfo() {
       <section id="about" className="scroll-mt-24 rounded-3xl border bg-card/40 p-6 md:p-10">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
           <div className="space-y-5">
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Contract mechanism</div>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Proof-of-work issuance</h2>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Historical context</div>
+            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Scarcity through computational work</h2>
             <p className="text-base leading-7 text-muted-foreground md:text-lg">
-              HashToken was deployed on <strong className="text-foreground">June 17, 2016</strong>. Its <code>mint()</code> function
-              accepts a value when <code>keccak256(value, prev_hash)</code> is less than or equal to <code>max_value</code>. A successful
-              mint issues one HTK, stores the new hash, and multiplies <code>max_value</code> by 99/100.
+              Deployed during Ethereum&apos;s first year, HashToken is an early example of token issuance governed by computational
+              work. It has no fixed supply cap. Instead, mining difficulty increases after every successful mint, causing the
+              expected work for successive tokens to grow exponentially. This creates natural scarcity through proof of work.
             </p>
             <a
               href={`${CONTRACT_URL}#code`}
@@ -399,7 +413,7 @@ export default function HashTokenInfo() {
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">01 · Search</div>
                 <h4 className="mt-1 font-semibold">Find a valid hash</h4>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Miners search for a Keccak-256 result below the current target.
+                  Search for a Keccak-256 result below the current target.
                 </p>
               </div>
               <div className="rounded-2xl border bg-background/70 p-5">
@@ -407,19 +421,19 @@ export default function HashTokenInfo() {
                   <Coins className="h-5 w-5" />
                 </div>
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">02 · Mint</div>
-                <h4 className="mt-1 font-semibold">Create one HTK</h4>
+                <h4 className="mt-1 font-semibold">Issue one HTK</h4>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  A valid solution sent to <code>mint()</code> rewards the miner with one token.
+                  Submit the valid solution to the contract&apos;s <code>mint()</code> function.
                 </p>
               </div>
               <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
                   <Gauge className="h-5 w-5" />
                 </div>
-                <div className="text-xs font-medium uppercase tracking-wide text-red-300">03 · Tighten</div>
-                <h4 className="mt-1 font-semibold">Raise the difficulty</h4>
+                <div className="text-xs font-medium uppercase tracking-wide text-red-300">03 · Adjust</div>
+                <h4 className="mt-1 font-semibold">Increase the difficulty</h4>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  The target becomes 99% of its previous value, making the next mint harder.
+                  The contract increases the difficulty for the next mint.
                 </p>
               </div>
             </div>
@@ -530,9 +544,9 @@ export default function HashTokenInfo() {
         <TabsContent value="mining" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Mining History</CardTitle>
+              <CardTitle>Mining history</CardTitle>
               <CardDescription>
-                Recent mining events · estimated attempts are probability-based, not an exact count of failed hashes
+                Recent mint events. Estimated attempts are probability-based, not an exact count of failed hashes.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -610,13 +624,8 @@ export default function HashTokenInfo() {
 
           <Card className="overflow-hidden">
             <CardHeader className="border-b bg-muted/10">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <CardTitle>How difficulty grows</CardTitle>
-                  <CardDescription className="mt-1">Expected hash attempts at future token numbers</CardDescription>
-                </div>
-                <div className="text-xs text-muted-foreground">Each mint raises expected work by roughly 1%</div>
-              </div>
+              <CardTitle>Difficulty projection</CardTitle>
+              <CardDescription className="mt-1">Expected hash attempts at selected future token numbers.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               {forecastData ? (
@@ -865,8 +874,8 @@ export default function HashTokenInfo() {
 
       <footer className="border-t py-8 text-center text-xs leading-relaxed text-muted-foreground">
         <p>
-          Contract state is read from Ethereum. Mint history is reconstructed from on-chain events and stored in the website database;
-          the coverage indicator above shows whether that index is complete. Market data is supplied by DexScreener.
+          Contract state is read from Ethereum. Mint history is reconstructed from on-chain events and stored in the website database.
+          The coverage indicator shows whether the index is complete.
         </p>
         <p className="mt-2">This website provides contract and historical data. It is not financial advice.</p>
         <p className="mt-3">
