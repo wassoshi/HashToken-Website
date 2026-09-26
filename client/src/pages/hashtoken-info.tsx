@@ -60,6 +60,8 @@ const CONTRACT_ADDRESS = "0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0";
 const CONTRACT_URL = `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
 const COINGECKO_URL = "https://www.coingecko.com/en/coins/hashtoken";
 const REPOSITORY_URL = "https://github.com/wassoshi/HashToken-Website";
+const X_URL = "https://x.com/Hashtoken2016";
+const DISCORD_URL = "https://discord.gg/DAwv5Ntrx";
 
 export default function HashTokenInfo() {
   const [showAllMintEvents, setShowAllMintEvents] = useState(false);
@@ -383,11 +385,19 @@ export default function HashTokenInfo() {
           <div className="space-y-5">
             <div className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Historical context</div>
             <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Scarcity through computational work</h2>
-            <p className="text-base leading-7 text-muted-foreground md:text-lg">
-              Deployed during Ethereum&apos;s first year, HashToken is an early example of token issuance governed by computational
-              work. It has no fixed supply cap. Instead, mining difficulty increases after every successful mint, causing the
-              expected work for successive tokens to grow exponentially. This creates natural scarcity through proof of work.
-            </p>
+            <div className="space-y-4 text-base leading-7 text-muted-foreground md:text-lg">
+              <p>
+                HashToken was deployed on <strong className="text-foreground">June 17, 2016</strong>, during Ethereum&apos;s first year.
+                Current historical research identifies it as the earliest known Ethereum token to implement a self-limiting
+                proof-of-work issuance model. After each successful mint, the contract sets the mining target to 99% of its previous
+                value, causing the expected work required for successive tokens to grow exponentially and creating natural scarcity
+                through computation.
+              </p>
+              <p>
+                Built on the StandardToken code, HashToken also implements an early ERC-20-compatible interface and remains compatible
+                with modern ERC-20 infrastructure without a wrapper.
+              </p>
+            </div>
             <a
               href={`${CONTRACT_URL}#code`}
               target="_blank"
@@ -457,15 +467,27 @@ export default function HashTokenInfo() {
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <a href="https://dexscreener.com/ethereum/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52" target="_blank" rel="noopener noreferrer">
-                <img src="/brands/dexscreener.png" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
-                DexScreener <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
+              <a href="https://www.geckoterminal.com/eth/pools/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52" target="_blank" rel="noopener noreferrer">
+                <img src="/brands/geckoterminal.png" alt="" aria-hidden="true" className="mr-2 h-4 w-4" />
+                GeckoTerminal <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
               <a href="https://app.uniswap.org/explore/tokens/ethereum/0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0" target="_blank" rel="noopener noreferrer">
                 <img src="/brands/uniswap.svg" alt="" aria-hidden="true" className="mr-2 h-4 w-4" />
                 Uniswap <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={X_URL} target="_blank" rel="noopener noreferrer">
+                <img src="/brands/x.svg" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
+                X <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
+                <img src="/brands/discord.svg" alt="" aria-hidden="true" className="mr-2 h-4 w-4" />
+                Discord <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
           </div>
