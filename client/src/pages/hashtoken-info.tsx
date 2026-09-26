@@ -41,19 +41,6 @@ interface MintEvent {
   expectedAttempts?: string;
 }
 
-interface SyncStatus {
-  status: "ready" | "syncing" | "error";
-  eventCount: number;
-  checkpointBlock: number | null;
-  recentCheckpointBlock?: number | null;
-  historyCheckpointBlock?: number | null;
-  historyComplete?: boolean;
-  historyLastError?: string | null;
-  lastSuccessfulSyncAt: string | null;
-  lastAttemptAt: string | null;
-  lastError: string | null;
-}
-
 interface TimelinePoint {
   month: string;
   count: number;
@@ -112,13 +99,6 @@ export default function HashTokenInfo() {
     refetchOnMount: true,
   });
 
-  const { data: syncStatus } = useQuery<SyncStatus>({
-    queryKey: ['/api/contract/sync-status'],
-    queryFn: () => fetch('/api/contract/sync-status').then(res => res.json()),
-    refetchInterval: 60 * 60 * 1000,
-    staleTime: 60 * 60 * 1000,
-  });
-
   const { data: timeline } = useQuery<TimelinePoint[]>({
     queryKey: ['/api/contract/timeline'],
     queryFn: async () => {
@@ -131,7 +111,6 @@ export default function HashTokenInfo() {
 
   const timelineSummary = useMemo(() => {
     const points = timeline ?? [];
-    const total = points.reduce((sum, point) => sum + point.count, 0);
     const peak = points.reduce<TimelinePoint | null>(
       (currentPeak, point) => !currentPeak || point.count > currentPeak.count ? point : currentPeak,
       null,
@@ -139,7 +118,6 @@ export default function HashTokenInfo() {
 
     return {
       points,
-      total,
       peak,
       maxCount: peak?.count ?? 0,
     };
@@ -225,10 +203,6 @@ export default function HashTokenInfo() {
     return estimatedAttempts.toExponential();
   };
 
-  const indexedCount = syncStatus?.eventCount ?? contractState?.transactionCount ?? 0;
-  const totalMintCount = contractState ? Number.parseInt(contractState.totalSupply, 10) : 0;
-  const missingHistoryCount = Math.max(totalMintCount - indexedCount, 0);
-  const historyCoverage = totalMintCount > 0 ? (indexedCount / totalMintCount) * 100 : 0;
   const visibleMintEvents = showAllMintEvents ? (mintEvents ?? []) : (mintEvents ?? []).slice(0, 12);
   const topMiners = (miners ?? []).slice(0, 10);
 
@@ -316,7 +290,7 @@ export default function HashTokenInfo() {
 
       {contractState && (
         <Card className="overflow-hidden border-border/80 bg-card/60 shadow-lg shadow-black/10">
-          <div className="grid md:grid-cols-3">
+          <div className="grid md:grid-cols-2">
             <div className="p-6">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Database className="h-4 w-4 text-emerald-400" />
@@ -337,31 +311,7 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">hash attempts on average</div>
             </div>
-            <div className="border-t p-6 md:border-l md:border-t-0">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Archive className="h-4 w-4 text-blue-400" />
-                Mining history indexed
-              </div>
-              <div className="mt-3 text-4xl font-semibold tracking-tight tabular-nums">
-                {historyCoverage.toFixed(1)}%
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {indexedCount.toLocaleString()} of {totalMintCount.toLocaleString()} mint events
-              </div>
-            </div>
           </div>
-          {syncStatus && (
-            <div className="flex flex-col gap-2 border-t bg-muted/10 px-6 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <span className="inline-flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${syncStatus.status === "error" ? "bg-amber-400" : "bg-emerald-400"}`} />
-                {syncStatus.status === "syncing" ? "Ethereum indexing is running" : "Recent Ethereum data is current"}
-                {syncStatus.lastSuccessfulSyncAt && ` · checked ${formatDistanceToNow(new Date(syncStatus.lastSuccessfulSyncAt), { addSuffix: true })}`}
-              </span>
-              {missingHistoryCount > 0 && (
-                <span>{missingHistoryCount.toLocaleString()} older events remain in archival recovery</span>
-              )}
-            </div>
-          )}
         </Card>
       )}
 
@@ -647,7 +597,7 @@ export default function HashTokenInfo() {
           <Card>
             <CardHeader>
               <CardTitle>Mint Activity by Month</CardTitle>
-              <CardDescription>Recovered on-chain mint events, shown with exact monthly counts</CardDescription>
+              <CardDescription>On-chain mint events by month.</CardDescription>
             </CardHeader>
             <CardContent>
               {timelineSummary.points.length > 0 ? (
@@ -688,24 +638,22 @@ export default function HashTokenInfo() {
                   </div>
 
                   <p className="text-center text-xs text-muted-foreground">
-                    Bar lengths use a logarithmic scale so quieter months remain visible; the numbers are exact.
+                    Bar lengths use a logarithmic scale so quieter months remain visible.
                   </p>
                 </div>
               ) : (
                 <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">Loading activity timeline…</div>
               )}
-              {missingHistoryCount > 0 && (
-                <p className="mt-3 text-center text-xs text-muted-foreground">
-                  This chart covers {historyCoverage.toFixed(1)}% of known mints; archival recovery is still in progress.
-                </p>
-              )}
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                Some early mint events are not represented in this historical data.
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Indexed miners</CardTitle>
-              <CardDescription>Most active addresses in the recovered mint history.</CardDescription>
+              <CardTitle>Most active miners</CardTitle>
+              <CardDescription>Addresses with the most mints in the available history.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -735,7 +683,7 @@ export default function HashTokenInfo() {
                   </div>
                   {miners && miners.length > topMiners.length && (
                     <p className="pt-1 text-center text-xs text-muted-foreground">
-                      Showing the 10 most active of {miners.length.toLocaleString()} indexed miners.
+                      Showing the 10 most active of {miners.length.toLocaleString()} recorded addresses.
                     </p>
                   )}
               </div>
@@ -748,8 +696,7 @@ export default function HashTokenInfo() {
 
       <footer className="border-t py-8 text-center text-xs leading-relaxed text-muted-foreground">
         <p>
-          Contract state is read from Ethereum. Mint history is reconstructed from on-chain events and stored in the website database.
-          The coverage indicator shows whether the index is complete.
+          Contract state and mint data are read from Ethereum.
         </p>
         <p className="mt-2">This website provides contract and historical data. It is not financial advice.</p>
         <p className="mt-3">
