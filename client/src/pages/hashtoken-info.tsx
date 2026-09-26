@@ -257,14 +257,14 @@ export default function HashTokenInfo() {
         <div className="relative z-10 grid items-center gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
           <div className="space-y-6">
             <Badge variant="outline" className="border-red-500/40 bg-red-500/10 px-3 py-1 text-red-300">
-              Ethereum · live since June 17, 2016
+              Ethereum · deployed June 17, 2016
             </Badge>
             <div className="space-y-4">
               <h1 className="max-w-3xl text-5xl font-bold tracking-[-0.04em] sm:text-6xl lg:text-7xl">
                 HashToken <span className="text-red-500">HTK</span>
               </h1>
               <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-                An early Ethereum proof-of-work token designed so every successful mint makes the next HTK harder to create.
+                An Ethereum token with contract-based proof-of-work issuance. After each successful mint, the target is reduced by 1%.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -293,8 +293,8 @@ export default function HashTokenInfo() {
                   className="h-20 w-20 rounded-full object-cover ring-1 ring-red-500/50"
                 />
                 <div>
-                  <div className="text-xs font-medium uppercase tracking-[0.2em] text-red-300">The minting rule</div>
-                  <div className="mt-1 text-2xl font-semibold">One success changes the next</div>
+                  <div className="text-xs font-medium uppercase tracking-[0.2em] text-red-300">Contract rule</div>
+                  <div className="mt-1 text-2xl font-semibold">Difficulty adjustment</div>
                 </div>
               </div>
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-5 text-center">
@@ -309,7 +309,7 @@ export default function HashTokenInfo() {
                 </div>
               </div>
               <p className="rounded-xl bg-white/[0.04] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-                The target falls to 99% of its previous value, increasing the expected work for the next mint.
+                After a successful mint, the contract multiplies the target by 99/100. A lower target increases the expected attempts for the next mint.
               </p>
             </div>
           </div>
@@ -370,13 +370,12 @@ export default function HashTokenInfo() {
       <section id="about" className="scroll-mt-24 rounded-3xl border bg-card/40 p-6 md:p-10">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
           <div className="space-y-5">
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Why it matters</div>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">A small contract with a lasting idea</h2>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Contract mechanism</div>
+            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Proof-of-work issuance</h2>
             <p className="text-base leading-7 text-muted-foreground md:text-lg">
-              HashToken launched on <strong className="text-foreground">June 17, 2016</strong>. Its proof-of-work rule lives
-              directly in the Ethereum contract: each successful mint lowers the target by 1%, so producing new HTK requires
-              progressively more computational work. Current historical research identifies it as the earliest known Ethereum
-              token to use this design.
+              HashToken was deployed on <strong className="text-foreground">June 17, 2016</strong>. Its <code>mint()</code> function
+              accepts a value when <code>keccak256(value, prev_hash)</code> is less than or equal to <code>max_value</code>. A successful
+              mint issues one HTK, stores the new hash, and multiplies <code>max_value</code> by 99/100.
             </p>
             <a
               href={`${CONTRACT_URL}#code`}
@@ -391,7 +390,7 @@ export default function HashTokenInfo() {
           </div>
 
           <div>
-            <h3 className="mb-4 text-lg font-semibold">How one mint changes the next</h3>
+            <h3 className="mb-4 text-lg font-semibold">Minting sequence</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border bg-background/70 p-5">
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
@@ -431,28 +430,32 @@ export default function HashTokenInfo() {
       <section className="rounded-2xl border bg-muted/10 px-5 py-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className="font-semibold">Explore HashToken</h3>
-            <p className="mt-1 text-sm text-muted-foreground">View the token on-chain or explore its current market.</p>
+            <h3 className="font-semibold">External resources</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Contract, token, and market references.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer">
-                Etherscan <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                <img src="/brands/etherscan.png" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
+                Etherscan <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
               <a href={COINGECKO_URL} target="_blank" rel="noopener noreferrer">
-                CoinGecko <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                <img src="/brands/coingecko.png" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
+                CoinGecko <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
               <a href="https://dexscreener.com/ethereum/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52" target="_blank" rel="noopener noreferrer">
-                DexScreener <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                <img src="/brands/dexscreener.png" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
+                DexScreener <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
               <a href="https://app.uniswap.org/explore/tokens/ethereum/0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0" target="_blank" rel="noopener noreferrer">
-                Uniswap <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                <img src="/brands/uniswap.svg" alt="" aria-hidden="true" className="mr-2 h-4 w-4" />
+                Uniswap <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
           </div>
@@ -703,9 +706,9 @@ export default function HashTokenInfo() {
                     </p>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">Historical Context</h4>
+                    <h4 className="font-medium mb-2">Contract context</h4>
                     <p className="text-sm text-muted-foreground">
-                      The 2016 contract provides an unusually early example of Ethereum-based issuance governed by progressively increasing computational work.
+                      The contract was deployed in 2016 and implements token issuance with progressively increasing computational work.
                     </p>
                   </div>
                 </div>
@@ -865,7 +868,7 @@ export default function HashTokenInfo() {
           Contract state is read from Ethereum. Mint history is reconstructed from on-chain events and stored in the website database;
           the coverage indicator above shows whether that index is complete. Market data is supplied by DexScreener.
         </p>
-        <p className="mt-2">This website is an informational historical resource, not financial advice.</p>
+        <p className="mt-2">This website provides contract and historical data. It is not financial advice.</p>
         <p className="mt-3">
           <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline">
             Website source and methodology ↗
