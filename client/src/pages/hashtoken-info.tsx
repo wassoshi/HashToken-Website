@@ -11,6 +11,7 @@ import {
   Coins,
   Cpu,
   Database,
+  DollarSign,
   ExternalLink,
   Gauge,
   Hash,
@@ -46,6 +47,15 @@ interface TimelinePoint {
   count: number;
 }
 
+interface MarketData {
+  priceUsd: number;
+  marketCap: number | null;
+  priceChange24h: number | null;
+  lastUpdatedAt: number | null;
+  source: "CoinGecko";
+  stale?: boolean;
+}
+
 const CONTRACT_ADDRESS = "0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0";
 const CONTRACT_URL = `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
 const COINGECKO_URL = "https://www.coingecko.com/en/coins/hashtoken";
@@ -70,6 +80,18 @@ export default function HashTokenInfo() {
     staleTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: true,
+  });
+
+  const { data: marketData } = useQuery<MarketData>({
+    queryKey: ['/api/contract/price'],
+    queryFn: async () => {
+      const response = await fetch('/api/contract/price');
+      if (!response.ok) throw new Error('Market data is unavailable');
+      return response.json();
+    },
+    refetchInterval: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: miners } = useQuery<Array<{address: string, count: number}>>({
@@ -185,6 +207,20 @@ export default function HashTokenInfo() {
     }
   };
 
+  const formatUsd = (value: number): string => new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: value >= 1 ? 2 : 4,
+    maximumFractionDigits: value >= 1 ? 2 : 6,
+  }).format(value);
+
+  const formatCompactUsd = (value: number): string => new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    notation: 'compact',
+    maximumFractionDigits: 2,
+  }).format(value);
+
   const formatMinerAddress = (address: string): string => {
     if (address.length < 14) return address;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -290,7 +326,7 @@ export default function HashTokenInfo() {
 
       {contractState && (
         <Card className="overflow-hidden border-border/80 bg-card/60 shadow-lg shadow-black/10">
-          <div className="grid md:grid-cols-2">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4">
             <div className="p-6">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Database className="h-4 w-4 text-emerald-400" />
@@ -301,7 +337,7 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">HTK · one token per successful mint</div>
             </div>
-            <div className="border-t p-6 md:border-l md:border-t-0">
+            <div className="border-t p-6 sm:border-l sm:border-t-0">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Gauge className="h-4 w-4 text-red-400" />
                 Work expected for next mint
@@ -310,6 +346,33 @@ export default function HashTokenInfo() {
                 {formatExpectedAttempts(contractState.expectedAttempts)}
               </div>
               <div className="mt-1 text-sm text-muted-foreground">hash attempts on average</div>
+            </div>
+            <div className="border-t p-6 xl:border-l xl:border-t-0">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Coins className="h-4 w-4 text-blue-400" />
+                Price per token
+              </div>
+              <div className="mt-3 text-4xl font-semibold tracking-tight tabular-nums">
+                {marketData ? formatUsd(marketData.priceUsd) : "Unavailable"}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {marketData?.stale ? "Last available CoinGecko value" : "USD per HTK · CoinGecko"}
+              </div>
+            </div>
+            <div className="border-t p-6 sm:border-l xl:border-t-0">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <DollarSign className="h-4 w-4 text-amber-400" />
+                Market cap
+              </div>
+              <div
+                className="mt-3 text-4xl font-semibold tracking-tight tabular-nums"
+                title={marketData?.marketCap ? formatUsd(marketData.marketCap) : undefined}
+              >
+                {marketData?.marketCap ? formatCompactUsd(marketData.marketCap) : "Unavailable"}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {marketData?.stale ? "Last available CoinGecko value" : "USD · CoinGecko"}
+              </div>
             </div>
           </div>
         </Card>
