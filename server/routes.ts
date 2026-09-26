@@ -11,6 +11,57 @@ import {
 } from "./ethereum";
 import { getMintSyncStatus } from "./mint-indexer";
 
+interface MarketData {
+  priceUsd: number;
+  marketCap: number | null;
+  priceChange24h: number | null;
+  lastUpdatedAt: number | null;
+  source: "CoinGecko";
+  stale?: boolean;
+}
+
+const MARKET_DATA_TTL_MS = 5 * 60 * 1000;
+let marketDataCache: { data: MarketData; expiresAt: number } | null = null;
+
+async function fetchMarketData(): Promise<MarketData> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "User-Agent": "HashTokenWebsite/1.0 (https://hashtokeneth.com)",
+  };
+  if (process.env.COINGECKO_API_KEY) {
+    headers["x-cg-demo-api-key"] = process.env.COINGECKO_API_KEY;
+  }
+
+  const response = await fetch(
+    "https://api.coingecko.com/api/v3/simple/price?ids=hashtoken&vs_currencies=usd&include_market_cap=true&include_24hr_change=true&include_last_updated_at=true",
+    { headers },
+  );
+  if (!response.ok) {
+    throw new Error(`CoinGecko returned ${response.status}`);
+  }
+
+  const payload = await response.json() as {
+    hashtoken?: {
+      usd?: number;
+      usd_market_cap?: number;
+      usd_24h_change?: number | null;
+      last_updated_at?: number;
+    };
+  };
+  const coin = payload.hashtoken;
+  if (!coin || typeof coin.usd !== "number") {
+    throw new Error("CoinGecko did not return a HashToken price");
+  }
+
+  return {
+    priceUsd: coin.usd,
+    marketCap: typeof coin.usd_market_cap === "number" ? coin.usd_market_cap : null,
+    priceChange24h: typeof coin.usd_24h_change === "number" ? coin.usd_24h_change : null,
+    lastUpdatedAt: typeof coin.last_updated_at === "number" ? coin.last_updated_at : null,
+    source: "CoinGecko",
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   void initializeProvider().catch((error) => {
     console.warn("Failed to initialize Ethereum provider:", error);
@@ -111,28 +162,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/contract/price", async (_req, res) => {
+    const now = Date.now();
+    if (marketDataCache && marketDataCache.expiresAt > now) {
+      res.json(marketDataCache.data);
+      return;
+    }
+
     try {
-      const pairResponse = await fetch("https://api.dexscreener.com/latest/dex/pairs/ethereum/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52");
-      const pairData = await pairResponse.json() as { pairs?: Array<Record<string, any>> };
-      const pair = pairData.pairs?.[0];
-      if (!pair) {
-        res.status(404).json({ error: "No trading pairs found" });
-        return;
-      }
-      res.json({
-        priceUsd: pair.priceUsd,
-        priceNative: pair.priceNative,
-        priceChange24h: pair.priceChange?.h24,
-        liquidity: pair.liquidity?.usd,
-        volume24h: pair.volume?.h24,
-        marketCap: pair.marketCap,
-        pairAddress: pair.pairAddress,
-        dexId: pair.dexId,
-        baseToken: pair.baseToken,
-        quoteToken: pair.quoteToken,
-      });
+      const data = await fetchMarketData();
+      marketDataCache = { data, expiresAt: now + MARKET_DATA_TTL_MS };
+      res.json(data);
     } catch (error) {
       console.error("Error fetching price data:", error);
+      if (marketDataCache) {
+        res.json({ ...marketDataCache.data, stale: true });
+        return;
+      }
       res.status(502).json({ error: "Failed to fetch price data" });
     }
   });
