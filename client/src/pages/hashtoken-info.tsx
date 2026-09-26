@@ -381,23 +381,10 @@ export default function HashTokenInfo() {
       )}
 
       <section id="about" className="scroll-mt-24 rounded-3xl border bg-card/40 p-6 md:p-10">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:items-start">
           <div className="space-y-5">
             <div className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Historical context</div>
             <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Scarcity through computational work</h2>
-            <div className="space-y-4 text-base leading-7 text-muted-foreground md:text-lg">
-              <p>
-                HashToken was deployed on <strong className="text-foreground">June 17, 2016</strong>, during Ethereum&apos;s first year.
-                Current historical research identifies it as the earliest known Ethereum token to implement a self-limiting
-                proof-of-work issuance model. After each successful mint, the contract sets the mining target to 99% of its previous
-                value, causing the expected work required for successive tokens to grow exponentially and creating natural scarcity
-                through computation.
-              </p>
-              <p>
-                Built on the StandardToken code, HashToken also implements an early ERC-20-compatible interface and remains compatible
-                with modern ERC-20 infrastructure without a wrapper.
-              </p>
-            </div>
             <a
               href={`${CONTRACT_URL}#code`}
               target="_blank"
@@ -410,50 +397,64 @@ export default function HashTokenInfo() {
             </a>
           </div>
 
-          <div>
-            <h3 className="mb-4 text-lg font-semibold">Minting sequence</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border bg-background/70 p-5">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                  <Cpu className="h-5 w-5" />
-                </div>
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">01 · Search</div>
-                <h4 className="mt-1 font-semibold">Find a valid hash</h4>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Search for a Keccak-256 result below the current target.
-                </p>
+          <div className="space-y-4 text-base leading-7 text-muted-foreground md:text-lg">
+            <p>
+              HashToken was deployed on <strong className="text-foreground">June 17, 2016</strong>, during Ethereum&apos;s first year.
+              Current historical research identifies it as the earliest known Ethereum token to implement a self-limiting
+              proof-of-work issuance model. After each successful mint, the contract sets the mining target to 99% of its previous
+              value, causing the expected work required for successive tokens to grow exponentially and creating natural scarcity
+              through computation.
+            </p>
+            <p>
+              Built on the StandardToken code, HashToken also implements an early ERC-20-compatible interface and remains compatible
+              with modern ERC-20 infrastructure without a wrapper.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 border-t pt-8">
+          <h3 className="mb-4 text-lg font-semibold">Minting sequence</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border bg-background/70 p-5">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                <Cpu className="h-5 w-5" />
               </div>
-              <div className="rounded-2xl border bg-background/70 p-5">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                  <Coins className="h-5 w-5" />
-                </div>
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">02 · Mint</div>
-                <h4 className="mt-1 font-semibold">Issue one HTK</h4>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Submit the valid solution to the contract&apos;s <code>mint()</code> function.
-                </p>
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">01 · Search</div>
+              <h4 className="mt-1 font-semibold">Find a valid hash</h4>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Search for a Keccak-256 result below the current target.
+              </p>
+            </div>
+            <div className="rounded-2xl border bg-background/70 p-5">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                <Coins className="h-5 w-5" />
               </div>
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
-                  <Gauge className="h-5 w-5" />
-                </div>
-                <div className="text-xs font-medium uppercase tracking-wide text-red-300">03 · Adjust</div>
-                <h4 className="mt-1 font-semibold">Increase the difficulty</h4>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  The contract increases the difficulty for the next mint.
-                </p>
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">02 · Mint</div>
+              <h4 className="mt-1 font-semibold">Issue one HTK</h4>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Submit the valid solution to the contract&apos;s <code>mint()</code> function.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+                <Gauge className="h-5 w-5" />
               </div>
+              <div className="text-xs font-medium uppercase tracking-wide text-red-300">03 · Adjust</div>
+              <h4 className="mt-1 font-semibold">Increase the difficulty</h4>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                The contract increases the difficulty for the next mint.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       <section className="rounded-2xl border bg-muted/10 px-5 py-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <h3 className="font-semibold">External resources</h3>
+        <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div>
-            <h3 className="font-semibold">External resources</h3>
-          </div>
-          <div className="flex flex-wrap gap-2">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Contract &amp; market</div>
+            <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer">
                 <img src="/brands/etherscan.png" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
@@ -473,11 +474,22 @@ export default function HashTokenInfo() {
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
+              <a href="https://dexscreener.com/ethereum/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52" target="_blank" rel="noopener noreferrer">
+                <img src="/brands/dexscreener.png" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
+                DexScreener <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
               <a href="https://app.uniswap.org/explore/tokens/ethereum/0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0" target="_blank" rel="noopener noreferrer">
                 <img src="/brands/uniswap.svg" alt="" aria-hidden="true" className="mr-2 h-4 w-4" />
                 Uniswap <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
+            </div>
+          </div>
+          <div className="lg:border-l lg:pl-5">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Community</div>
+            <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={X_URL} target="_blank" rel="noopener noreferrer">
                 <img src="/brands/x.svg" alt="" aria-hidden="true" className="mr-2 h-4 w-4 rounded-sm" />
@@ -490,6 +502,7 @@ export default function HashTokenInfo() {
                 Discord <ExternalLink className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
               </a>
             </Button>
+            </div>
           </div>
         </div>
       </section>
