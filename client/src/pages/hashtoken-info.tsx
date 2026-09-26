@@ -5,9 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Activity,
   Archive,
   ArrowRight,
   Coins,
@@ -254,7 +252,7 @@ export default function HashTokenInfo() {
   return (
     <div className="container mx-auto max-w-7xl space-y-10 px-4 py-6 md:py-8">
       <section id="overview" className="hero-surface relative overflow-hidden rounded-3xl border border-red-500/20 px-6 py-10 shadow-2xl shadow-red-950/10 md:px-10 md:py-14">
-        <div className="relative z-10 grid items-center gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+        <div className="relative z-10 grid items-center gap-10 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.65fr)]">
           <div className="space-y-6">
             <Badge variant="outline" className="border-red-500/40 bg-red-500/10 px-3 py-1 text-red-300">
               Ethereum · deployed June 17, 2016
@@ -263,7 +261,7 @@ export default function HashTokenInfo() {
               <h1 className="max-w-3xl text-5xl font-bold tracking-[-0.04em] sm:text-6xl lg:text-7xl">
                 HashToken <span className="text-red-500">HTK</span>
               </h1>
-              <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+              <p className="max-w-4xl text-lg leading-relaxed text-muted-foreground sm:text-xl xl:whitespace-nowrap">
                 An early Ethereum token with proof-of-work issuance encoded in its contract.
               </p>
             </div>
@@ -318,7 +316,7 @@ export default function HashTokenInfo() {
 
       {contractState && (
         <Card className="overflow-hidden border-border/80 bg-card/60 shadow-lg shadow-black/10">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid md:grid-cols-3">
             <div className="p-6">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Database className="h-4 w-4 text-emerald-400" />
@@ -329,7 +327,7 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">HTK · one token per successful mint</div>
             </div>
-            <div className="border-t p-6 sm:border-l sm:border-t-0">
+            <div className="border-t p-6 md:border-l md:border-t-0">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Gauge className="h-4 w-4 text-red-400" />
                 Work expected for next mint
@@ -339,7 +337,7 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">hash attempts on average</div>
             </div>
-            <div className="border-t p-6 lg:border-l lg:border-t-0">
+            <div className="border-t p-6 md:border-l md:border-t-0">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Archive className="h-4 w-4 text-blue-400" />
                 Mining history indexed
@@ -349,20 +347,6 @@ export default function HashTokenInfo() {
               </div>
               <div className="mt-1 text-sm text-muted-foreground">
                 {indexedCount.toLocaleString()} of {totalMintCount.toLocaleString()} mint events
-              </div>
-            </div>
-            <div className="border-t p-6 sm:border-l lg:border-t-0">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Activity className="h-4 w-4 text-emerald-400" />
-                Status
-              </div>
-              <div className="mt-3 text-3xl font-semibold tracking-tight">
-                {syncStatus?.status === "syncing" ? "Syncing" : syncStatus?.status === "error" ? "Delayed" : "Current"}
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {syncStatus?.lastSuccessfulSyncAt
-                  ? `updated ${formatDistanceToNow(new Date(syncStatus.lastSuccessfulSyncAt), { addSuffix: true })}`
-                  : "Ethereum index status"}
               </div>
             </div>
           </div>
@@ -445,7 +429,6 @@ export default function HashTokenInfo() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="font-semibold">External resources</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Contract, token, and market references.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
@@ -661,70 +644,6 @@ export default function HashTokenInfo() {
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-6 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Mining Statistics */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Mining Statistics</CardTitle>
-                <CardDescription>Key metrics about HashToken mining</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {contractState && (
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm font-medium">Current Max Value:</span>
-                      <span className="text-sm font-mono">{formatLargeNumber(contractState.maxValue)}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm font-medium">Expected Attempts:</span>
-                      <span className="text-sm font-bold text-orange-500">
-                        {formatExpectedAttempts(contractState.expectedAttempts)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm font-medium">Total Mints:</span>
-                      <span className="text-sm">{contractState.totalMints?.toLocaleString() || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="text-sm font-medium">Current Block:</span>
-                      <span className="text-sm font-mono">{contractState.blockNumber.toLocaleString()}</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Difficulty Analysis */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Difficulty Analysis</CardTitle>
-                <CardDescription>Understanding HashToken mining difficulty</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="p-3 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">Mining Mechanism</h4>
-                    <p className="text-sm text-muted-foreground">
-                      HashToken uses a proof-of-work system where miners must find a hash value less than or equal to max_value.
-                    </p>
-                  </div>
-                  <div className="p-3 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">Difficulty Progression</h4>
-                    <p className="text-sm text-muted-foreground">
-                      After each successful mint, max_value decreases by 1%, making subsequent mints exponentially harder.
-                    </p>
-                  </div>
-                  <div className="p-3 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">Contract context</h4>
-                    <p className="text-sm text-muted-foreground">
-                      The contract was deployed in 2016 and implements token issuance with progressively increasing computational work.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           <Card>
             <CardHeader>
               <CardTitle>Mint Activity by Month</CardTitle>
@@ -733,11 +652,7 @@ export default function HashTokenInfo() {
             <CardContent>
               {timelineSummary.points.length > 0 ? (
                 <div className="space-y-6">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-lg border bg-muted/20 p-4">
-                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Indexed events</div>
-                      <div className="mt-1 text-2xl font-semibold">{timelineSummary.total.toLocaleString()}</div>
-                    </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border bg-muted/20 p-4">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Peak month</div>
                       <div className="mt-1 text-lg font-semibold">
@@ -787,53 +702,13 @@ export default function HashTokenInfo() {
             </CardContent>
           </Card>
 
-          {/* Mining Activity Analysis */}
           <Card>
             <CardHeader>
-              <CardTitle>Mining Activity Analysis</CardTitle>
-              <CardDescription>Recent mining activity and miner distribution</CardDescription>
+              <CardTitle>Indexed miners</CardTitle>
+              <CardDescription>Most active addresses in the recovered mint history.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {miners?.length || 'N/A'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Indexed Miners</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {contractState?.totalMints?.toLocaleString() || 'N/A'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Total Mints</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">
-                      {mintEvents && mintEvents.length > 0 ? 
-                        new Date(mintEvents[0].timestamp).toLocaleDateString() : 'N/A'
-                      }
-                    </div>
-                    <div className="text-sm text-muted-foreground">Latest Mint</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {contractState ? formatExpectedAttempts(contractState.expectedAttempts) : 'N/A'}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Expected Work</div>
-                  </div>
-                </div>
-
-                <Alert>
-                  <Activity className="h-4 w-4" />
-                  <AlertDescription>
-                    The contract reports {contractState?.totalMints?.toLocaleString() || 'N/A'} total mints since 2016.
-                    The indexed miner statistics below currently cover {indexedCount.toLocaleString()} recovered events.
-                  </AlertDescription>
-                </Alert>
-
-                <div className="space-y-3">
-                  <h4 className="font-medium">Indexed Miners by Activity</h4>
+              <div className="space-y-3">
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {topMiners.length > 0 ? (
                       topMiners.map((miner, index) => (
@@ -859,11 +734,10 @@ export default function HashTokenInfo() {
                     )}
                   </div>
                   {miners && miners.length > topMiners.length && (
-                    <p className="text-center text-xs text-muted-foreground">
+                    <p className="pt-1 text-center text-xs text-muted-foreground">
                       Showing the 10 most active of {miners.length.toLocaleString()} indexed miners.
                     </p>
                   )}
-                </div>
               </div>
             </CardContent>
           </Card>
