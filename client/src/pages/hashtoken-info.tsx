@@ -6,7 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExternalLink, Hash, TrendingUp, Activity, Database, DollarSign, Archive, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  Archive,
+  ArrowRight,
+  Coins,
+  Cpu,
+  Database,
+  ExternalLink,
+  Gauge,
+  Hash,
+  ShieldCheck,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import hashTokenLogo from "@assets/image_1757206689096.png";
 
@@ -52,6 +63,7 @@ interface TimelinePoint {
 
 const CONTRACT_ADDRESS = "0xE5544a2A5fA9b175da60D8Eec67adD5582bB31b0";
 const CONTRACT_URL = `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
+const COINGECKO_URL = "https://www.coingecko.com/en/coins/hashtoken";
 const REPOSITORY_URL = "https://github.com/wassoshi/HashToken-Website";
 
 export default function HashTokenInfo() {
@@ -78,24 +90,6 @@ export default function HashTokenInfo() {
   const { data: miners } = useQuery<Array<{address: string, count: number}>>({
     queryKey: ['/api/contract/miners'],
     queryFn: () => fetch('/api/contract/miners').then(res => res.json()),
-    refetchInterval: 60 * 60 * 1000, // Refresh hourly
-    staleTime: 60 * 60 * 1000,
-  });
-
-  const { data: priceData } = useQuery<{
-    priceUsd: string;
-    priceNative: string;
-    priceChange24h: number;
-    liquidity: number;
-    volume24h: number;
-    marketCap: number;
-    pairAddress: string;
-    dexId: string;
-    baseToken: any;
-    quoteToken: any;
-  }>({
-    queryKey: ['/api/contract/price'],
-    queryFn: () => fetch('/api/contract/price').then(res => res.json()),
     refetchInterval: 60 * 60 * 1000, // Refresh hourly
     staleTime: 60 * 60 * 1000,
   });
@@ -233,18 +227,6 @@ export default function HashTokenInfo() {
     return estimatedAttempts.toExponential();
   };
 
-  const getDifficultyColor = (difficulty: string): string => {
-    try {
-      const diff = parseFloat(difficulty);
-      if (diff >= 90) return "bg-red-500";
-      if (diff >= 70) return "bg-orange-500";
-      if (diff >= 50) return "bg-yellow-500";
-      return "bg-green-500";
-    } catch {
-      return "bg-gray-500";
-    }
-  };
-
   const indexedCount = syncStatus?.eventCount ?? contractState?.transactionCount ?? 0;
   const totalMintCount = contractState ? Number.parseInt(contractState.totalSupply, 10) : 0;
   const missingHistoryCount = Math.max(totalMintCount - indexedCount, 0);
@@ -270,238 +252,197 @@ export default function HashTokenInfo() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <section id="overview" className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-red-500/10 via-background to-background px-6 py-10 md:px-10 md:py-14">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 text-center md:flex-row md:text-left">
-          <img
-            src={hashTokenLogo}
-            alt="HashToken logo"
-            className="h-24 w-24 rounded-full object-cover ring-1 ring-red-500/50 md:h-28 md:w-28"
-          />
-          <div className="space-y-4">
-            <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-300">
-              Ethereum · deployed June 17, 2016
+    <div className="container mx-auto max-w-7xl space-y-10 px-4 py-6 md:py-8">
+      <section id="overview" className="hero-surface relative overflow-hidden rounded-3xl border border-red-500/20 px-6 py-10 shadow-2xl shadow-red-950/10 md:px-10 md:py-14">
+        <div className="relative z-10 grid items-center gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
+          <div className="space-y-6">
+            <Badge variant="outline" className="border-red-500/40 bg-red-500/10 px-3 py-1 text-red-300">
+              Ethereum · live since June 17, 2016
             </Badge>
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight md:text-5xl">HashToken (HTK)</h1>
-              <p className="mt-3 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-                Launched in 2016, HashToken is a historic Ethereum proof-of-work token whose mining difficulty increases with every successful mint.
+            <div className="space-y-4">
+              <h1 className="max-w-3xl text-5xl font-bold tracking-[-0.04em] sm:text-6xl lg:text-7xl">
+                HashToken <span className="text-red-500">HTK</span>
+              </h1>
+              <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+                An early Ethereum proof-of-work token designed so every successful mint makes the next HTK harder to create.
               </p>
             </div>
-            <div className="flex flex-col justify-center gap-3 sm:flex-row md:justify-start">
-              <Button asChild>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button size="lg" asChild>
                 <a href="#history">
                   <Archive className="mr-2 h-4 w-4" />
                   Explore mining history
                 </a>
               </Button>
-              <Button variant="outline" asChild>
+              <Button size="lg" variant="outline" asChild>
                 <a href="#about">
                   How it works
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
               </Button>
             </div>
           </div>
+
+          <div className="mx-auto w-full max-w-sm">
+            <div className="relative rounded-3xl border border-white/10 bg-black/30 p-5 shadow-2xl backdrop-blur">
+              <div className="absolute -inset-8 -z-10 rounded-full bg-red-500/15 blur-3xl" />
+              <div className="flex items-center gap-4 border-b border-white/10 pb-5">
+                <img
+                  src={hashTokenLogo}
+                  alt="HashToken logo"
+                  className="h-20 w-20 rounded-full object-cover ring-1 ring-red-500/50"
+                />
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-[0.2em] text-red-300">The minting rule</div>
+                  <div className="mt-1 text-2xl font-semibold">One success changes the next</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-5 text-center">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Reward</div>
+                  <div className="mt-1 text-2xl font-bold">1 HTK</div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-red-400" />
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Next target</div>
+                  <div className="mt-1 text-2xl font-bold text-red-400">−1%</div>
+                </div>
+              </div>
+              <p className="rounded-xl bg-white/[0.04] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+                The target falls to 99% of its previous value, increasing the expected work for the next mint.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Key Metrics - Moved Above Educational Content */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Current Supply */}
-        {contractState && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-base">
-                <Database className="h-4 w-4" />
-                <span>Current Supply</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center space-y-2">
-                <div className="text-4xl font-bold text-green-600">
-                  {formatTokenAmount(contractState.totalSupply)}
-                </div>
-                <div className="text-sm text-muted-foreground">HTK Tokens</div>
-                <div className="text-xs text-muted-foreground">1 token per successful mint</div>
+      {contractState && (
+        <Card className="overflow-hidden border-border/80 bg-card/60 shadow-lg shadow-black/10">
+          <div className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
+            <div className="p-6">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Database className="h-4 w-4 text-emerald-400" />
+                Current supply
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Expected Attempts */}
-        {contractState && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-base">
-                <Hash className="h-4 w-4" />
-                <span>Expected Attempts</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center space-y-2">
-                <div className="text-4xl font-bold text-red-500">
-                  {formatExpectedAttempts(contractState.expectedAttempts)}
-                </div>
-                <div className="text-sm text-muted-foreground">For Next Mint</div>
-                <div className="text-xs text-muted-foreground">Based on current difficulty</div>
+              <div className="mt-3 text-4xl font-semibold tracking-tight tabular-nums">
+                {formatTokenAmount(contractState.totalSupply)}
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Live Price */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-base">
-              <TrendingUp className="h-4 w-4" />
-              <span>Live Price</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-2">
-              {priceData && priceData.priceUsd ? (
-                <>
-                  <div className="text-4xl font-bold text-blue-600">
-                    ${parseFloat(priceData.priceUsd).toFixed(2)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">USD per HTK · DexScreener</div>
-                  {priceData.priceNative && (
-                    <div className="text-xs text-muted-foreground">
-                      {parseFloat(priceData.priceNative).toFixed(6)} ETH
-                    </div>
-                  )}
-                  {priceData.priceChange24h && (
-                    <div className={`text-xs ${priceData.priceChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {priceData.priceChange24h >= 0 ? '+' : ''}{priceData.priceChange24h.toFixed(2)}% (24h)
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center space-y-2">
-                  <div className="text-2xl font-bold text-muted-foreground">No Active Trading</div>
-                  <div className="text-sm text-muted-foreground">Historic collectible token</div>
-                  <div className="text-xs text-muted-foreground">
-                    <a href="https://dexscreener.com/ethereum/0x01c0aeaee4f9b9417237aef3556bc1d7bd00ec52" 
-                       target="_blank" 
-                       rel="noopener noreferrer"
-                       className="text-blue-500 hover:underline">
-                      View on DexScreener
-                    </a>
-                  </div>
-                </div>
+              <div className="mt-1 text-sm text-muted-foreground">HTK · one token per successful mint</div>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Gauge className="h-4 w-4 text-red-400" />
+                Work expected for next mint
+              </div>
+              <div className="mt-3 text-4xl font-semibold tracking-tight text-red-400 tabular-nums">
+                {formatExpectedAttempts(contractState.expectedAttempts)}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">hash attempts on average</div>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Archive className="h-4 w-4 text-blue-400" />
+                Mining history indexed
+              </div>
+              <div className="mt-3 text-4xl font-semibold tracking-tight tabular-nums">
+                {historyCoverage.toFixed(1)}%
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {indexedCount.toLocaleString()} of {totalMintCount.toLocaleString()} mint events
+              </div>
+            </div>
+          </div>
+          {syncStatus && (
+            <div className="flex flex-col gap-2 border-t bg-muted/10 px-6 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <span className="inline-flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${syncStatus.status === "error" ? "bg-amber-400" : "bg-emerald-400"}`} />
+                {syncStatus.status === "syncing" ? "Ethereum indexing is running" : "Recent Ethereum data is current"}
+                {syncStatus.lastSuccessfulSyncAt && ` · checked ${formatDistanceToNow(new Date(syncStatus.lastSuccessfulSyncAt), { addSuffix: true })}`}
+              </span>
+              {missingHistoryCount > 0 && (
+                <span>{missingHistoryCount.toLocaleString()} older events remain in archival recovery</span>
               )}
             </div>
-          </CardContent>
+          )}
         </Card>
-
-        {/* Market Cap */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-base">
-              <DollarSign className="h-4 w-4" />
-              <span>Estimated Market Cap</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-2">
-              {priceData && priceData.priceUsd && contractState ? (
-                <>
-                  <div className="text-4xl font-bold text-purple-600">
-                    ${Math.round(parseFloat(priceData.priceUsd) * parseInt(contractState.totalSupply)).toLocaleString()}
-                  </div>
-                  <div className="text-sm text-muted-foreground">On-chain supply × live price</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatTokenAmount(contractState.totalSupply)} × ${parseFloat(priceData.priceUsd).toFixed(2)}
-                  </div>
-                </>
-              ) : (
-                <div className="text-center space-y-2">
-                  <div className="text-2xl font-bold text-muted-foreground">N/A</div>
-                  <div className="text-sm text-muted-foreground">No price data</div>
-                  <div className="text-xs text-muted-foreground">
-                    Requires active trading pairs
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {syncStatus && (
-        <Alert className={missingHistoryCount > 0 ? "border-amber-500/40 bg-amber-500/5" : "border-emerald-500/40 bg-emerald-500/5"}>
-          <Activity className="h-4 w-4" />
-          <AlertDescription className="space-y-2">
-            <div>
-              <strong>{syncStatus.status === "syncing" ? "Ethereum indexing is running." : "Recent Ethereum data is current."}</strong>{' '}
-              {indexedCount.toLocaleString()} of {totalMintCount.toLocaleString()} mint events are indexed
-              {totalMintCount > 0 && ` (${historyCoverage.toFixed(1)}% coverage)`}.
-              {syncStatus.lastSuccessfulSyncAt && ` Last checked ${formatDistanceToNow(new Date(syncStatus.lastSuccessfulSyncAt), { addSuffix: true })}.`}
-            </div>
-            {missingHistoryCount > 0 && (
-              <div className="text-xs text-muted-foreground">
-                {missingHistoryCount.toLocaleString()} older events remain to be recovered from archival Ethereum data. Existing records and new mints are preserved.
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
       )}
 
-      <section id="about" className="mx-auto max-w-4xl scroll-mt-24 space-y-6">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-semibold">A 2016 Ethereum experiment</h2>
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            HashToken was deployed on <strong>June 17, 2016</strong>. Its verified contract encodes a self-limiting proof-of-work
-            minting rule: every successful mint reduces the target by 1%, progressively increasing the expected computational
-            work required for the next token. Current historical research identifies it as the earliest known Ethereum token
-            to use this particular issuance model.
-          </p>
-          <div className="flex justify-center text-sm">
-            <a href={`${CONTRACT_URL}#code`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-400 hover:underline">
+      <section id="about" className="scroll-mt-24 rounded-3xl border bg-card/40 p-6 md:p-10">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-start">
+          <div className="space-y-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-red-400">Why it matters</div>
+            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">A small contract with a lasting idea</h2>
+            <p className="text-base leading-7 text-muted-foreground md:text-lg">
+              HashToken launched on <strong className="text-foreground">June 17, 2016</strong>. Its proof-of-work rule lives
+              directly in the Ethereum contract: each successful mint lowers the target by 1%, so producing new HTK requires
+              progressively more computational work. Current historical research identifies it as the earliest known Ethereum
+              token to use this design.
+            </p>
+            <a
+              href={`${CONTRACT_URL}#code`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+            >
               <ShieldCheck className="h-4 w-4" />
-              Read the verified 2016 contract source
-              <ExternalLink className="h-3 w-3" />
+              Read the 2016 contract source
+              <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 gap-6 text-left md:grid-cols-2">
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold">How It Works</h3>
-            <ul className="list-disc space-y-2 pl-5 text-muted-foreground">
-              <li><strong>Self-limiting PoW:</strong> issuance becomes progressively harder rather than ending at a fixed cap.</li>
-              <li><strong>Dynamic target:</strong> each mint multiplies <code>max_value</code> by 99/100.</li>
-              <li><strong>Keccak-256:</strong> candidate values are combined with the previous winning hash.</li>
-              <li><strong>One-token reward:</strong> each valid solution creates one HTK.</li>
-            </ul>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold">Minting rule</h3>
-            <ol className="list-decimal space-y-2 pl-5 text-muted-foreground">
-              <li>Find a value where <code>keccak256(value, prev_hash) ≤ max_value</code>.</li>
-              <li>Submit the value to the contract&apos;s <code>mint()</code> function.</li>
-              <li>The successful miner receives one HTK.</li>
-              <li>The contract records the new hash and makes the next mint harder.</li>
-            </ol>
+          <div>
+            <h3 className="mb-4 text-lg font-semibold">How one mint changes the next</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border bg-background/70 p-5">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                  <Cpu className="h-5 w-5" />
+                </div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">01 · Search</div>
+                <h4 className="mt-1 font-semibold">Find a valid hash</h4>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Miners search for a Keccak-256 result below the current target.
+                </p>
+              </div>
+              <div className="rounded-2xl border bg-background/70 p-5">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                  <Coins className="h-5 w-5" />
+                </div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">02 · Mint</div>
+                <h4 className="mt-1 font-semibold">Create one HTK</h4>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  A valid solution sent to <code>mint()</code> rewards the miner with one token.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-5">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+                  <Gauge className="h-5 w-5" />
+                </div>
+                <div className="text-xs font-medium uppercase tracking-wide text-red-300">03 · Tighten</div>
+                <h4 className="mt-1 font-semibold">Raise the difficulty</h4>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  The target becomes 99% of its previous value, making the next mint harder.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-
-
-
-
-      <section className="rounded-xl border bg-muted/10 px-5 py-4">
+      <section className="rounded-2xl border bg-muted/10 px-5 py-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="font-semibold">Explore HashToken</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Verify the token on-chain or view its current market.</p>
+            <p className="mt-1 text-sm text-muted-foreground">View the token on-chain or explore its current market.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={CONTRACT_URL} target="_blank" rel="noopener noreferrer">
                 Etherscan <ExternalLink className="ml-2 h-3.5 w-3.5" />
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href={COINGECKO_URL} target="_blank" rel="noopener noreferrer">
+                CoinGecko <ExternalLink className="ml-2 h-3.5 w-3.5" />
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
@@ -520,13 +461,13 @@ export default function HashTokenInfo() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="mining" className="w-full scroll-mt-24" id="history">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="mining">Mining History</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="calculator">Mining Simulator</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border bg-card/60 p-1">
+          <TabsTrigger value="mining" className="py-2.5 text-xs sm:text-sm">Mining history</TabsTrigger>
+          <TabsTrigger value="analytics" className="py-2.5 text-xs sm:text-sm">Analytics</TabsTrigger>
+          <TabsTrigger value="calculator" className="py-2.5 text-xs sm:text-sm">Simulator</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calculator" className="space-y-6">
+        <TabsContent value="calculator" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -583,55 +524,7 @@ export default function HashTokenInfo() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="mining" className="space-y-6">
-          {/* Difficulty Forecast - Moved to top */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Difficulty Forecast</CardTitle>
-              <CardDescription>Expected attempts for future token numbers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {forecastData ? (
-                <div className="space-y-4">
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-sm text-muted-foreground">Current Token #{forecastData.currentMintCount}</div>
-                    <div className="text-lg font-bold text-blue-500">
-                      {formatExpectedAttempts(forecastData.currentExpectedAttempts)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Expected attempts</div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {forecastData.forecasts.map((forecast, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">Token #{forecast.tokenNumber}</span>
-                          <span className="text-xs text-muted-foreground">
-                            +{forecast.tokenNumber - forecastData.currentMintCount} from current
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-orange-500">
-                            {formatExpectedAttempts(forecast.expectedAttempts)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">expected attempts</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="text-xs text-muted-foreground text-center mt-4 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                    💡 Each mint increases difficulty by ~1%, requiring exponentially more computational work
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
+        <TabsContent value="mining" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Mining History</CardTitle>
@@ -712,10 +605,50 @@ export default function HashTokenInfo() {
             </CardContent>
           </Card>
 
-
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b bg-muted/10">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <CardTitle>How difficulty grows</CardTitle>
+                  <CardDescription className="mt-1">Expected hash attempts at future token numbers</CardDescription>
+                </div>
+                <div className="text-xs text-muted-foreground">Each mint raises expected work by roughly 1%</div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {forecastData ? (
+                <div className="grid grid-cols-2 divide-x divide-y sm:grid-cols-4 sm:divide-y-0">
+                  <div className="bg-red-500/[0.04] p-5">
+                    <div className="text-xs uppercase tracking-wide text-red-300">Current</div>
+                    <div className="mt-1 text-sm font-medium">Token #{forecastData.currentMintCount}</div>
+                    <div className="mt-4 text-2xl font-semibold text-red-400">
+                      {formatExpectedAttempts(forecastData.currentExpectedAttempts)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">expected attempts</div>
+                  </div>
+                  {forecastData.forecasts.map((forecast) => (
+                    <div key={forecast.tokenNumber} className="p-5">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                        +{forecast.tokenNumber - forecastData.currentMintCount} mints
+                      </div>
+                      <div className="mt-1 text-sm font-medium">Token #{forecast.tokenNumber}</div>
+                      <div className="mt-4 text-2xl font-semibold">
+                        {formatExpectedAttempts(forecast.expectedAttempts)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">expected attempts</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-32 items-center justify-center">
+                  <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-primary" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-6">
+        <TabsContent value="analytics" className="mt-6 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Mining Statistics */}
             <Card>
@@ -772,7 +705,7 @@ export default function HashTokenInfo() {
                   <div className="p-3 bg-muted rounded-lg">
                     <h4 className="font-medium mb-2">Historical Context</h4>
                     <p className="text-sm text-muted-foreground">
-                      The verified 2016 contract provides an unusually early example of Ethereum-based issuance governed by progressively increasing computational work.
+                      The 2016 contract provides an unusually early example of Ethereum-based issuance governed by progressively increasing computational work.
                     </p>
                   </div>
                 </div>
